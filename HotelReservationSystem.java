@@ -16,6 +16,7 @@ class User implements Serializable {
     private String email;
     private String phoneNumber;
     private long createdAt;
+    private boolean isAdmin;
 
     public User(String username, String password, String email, String phoneNumber) {
         this.username = username;
@@ -23,6 +24,7 @@ class User implements Serializable {
         this.email = email;
         this.phoneNumber = phoneNumber;
         this.createdAt = System.currentTimeMillis();
+        this.isAdmin = false;
     }
 
     public String getUsername() { return username; }
@@ -30,13 +32,15 @@ class User implements Serializable {
     public String getEmail() { return email; }
     public String getPhoneNumber() { return phoneNumber; }
     public long getCreatedAt() { return createdAt; }
+    public boolean isAdmin() { return isAdmin; }
+    public void setAdmin(boolean admin) { isAdmin = admin; }
     public void setEmail(String email) { this.email = email; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
 
     @Override
     public String toString() {
         return "User{" + "username='" + username + '\'' + ", email='" + email + '\'' +
-                ", phoneNumber='" + phoneNumber + '\'' + ", createdAt=" + createdAt + '}';
+                ", phoneNumber='" + phoneNumber + '\'' + ", isAdmin=" + isAdmin + ", createdAt=" + createdAt + '}';
     }
 }
 
@@ -66,6 +70,10 @@ class Room implements Serializable {
     public String getDescription() { return description; }
     public int getCapacity() { return capacity; }
     public void setAvailable(boolean available) { this.available = available; }
+    public void setType(String type) { this.type = type; }
+    public void setPrice(double price) { this.price = price; }
+    public void setDescription(String description) { this.description = description; }
+    public void setCapacity(int capacity) { this.capacity = capacity; }
 
     @Override
     public String toString() {
@@ -127,6 +135,7 @@ class Booking implements Serializable {
 class DatabaseManager {
     private static final String USERS_FILE = "data/users.dat";
     private static final String BOOKINGS_FILE = "data/bookings.dat";
+    private static final String ROOMS_FILE = "data/rooms.dat";
     private static final String DATA_DIR = "data";
 
     static {
@@ -166,6 +175,23 @@ class DatabaseManager {
             return new ArrayList<>();
         }
     }
+
+    public static void saveRooms(ArrayList<Room> rooms) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(ROOMS_FILE))) {
+            oos.writeObject(rooms);
+        } catch (IOException e) {
+            System.err.println("Error saving rooms: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static ArrayList<Room> loadRooms() {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(ROOMS_FILE))) {
+            return (ArrayList<Room>) ois.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            return new ArrayList<>();
+        }
+    }
 }
 
 // =============== Authentication Controller ===============
@@ -174,6 +200,16 @@ class AuthenticationController {
 
     public AuthenticationController() {
         this.users = DatabaseManager.loadUsers();
+        initializeAdminUser();
+    }
+
+    private void initializeAdminUser() {
+        if (!users.containsKey("admin")) {
+            User adminUser = new User("admin", "admin123", "admin@hotel.com", "9999999999");
+            adminUser.setAdmin(true);
+            users.put("admin", adminUser);
+            saveUsers();
+        }
     }
 
     public boolean register(String username, String password, String confirmPassword, String email, String phoneNumber) {
@@ -225,9 +261,13 @@ class HotelManager {
     private int bookingCounter;
 
     public HotelManager() {
-        this.rooms = new ArrayList<>();
+        this.rooms = DatabaseManager.loadRooms();
         this.bookings = DatabaseManager.loadBookings();
-        initializeRooms();
+        
+        if (rooms.isEmpty()) {
+            initializeRooms();
+        }
+        
         this.bookingCounter = bookings.isEmpty() ? 1 : bookings.get(bookings.size() - 1).getBookingId() + 1;
     }
 
@@ -238,6 +278,7 @@ class HotelManager {
         rooms.add(new Room(202, "Deluxe", 5000, "Spacious room with premium amenities", 4));
         rooms.add(new Room(301, "Suite", 8000, "Luxury suite with separate living area", 6));
         rooms.add(new Room(302, "Suite", 8000, "Luxury suite with separate living area", 6));
+        saveRooms();
     }
 
     public ArrayList<Room> getAvailableRooms() {
@@ -327,6 +368,51 @@ class HotelManager {
     public void saveBookings() {
         DatabaseManager.saveBookings(bookings);
     }
+
+    public void saveRooms() {
+        DatabaseManager.saveRooms(rooms);
+    }
+
+    public boolean addRoom(Room room) {
+        for (Room r : rooms) {
+            if (r.getId() == room.getId()) return false;
+        }
+        rooms.add(room);
+        saveRooms();
+        return true;
+    }
+
+    public boolean removeRoom(int roomId) {
+        for (Booking b : bookings) {
+            if (b.getRoomId() == roomId && b.getStatus().equals("CONFIRMED")) {
+                return false;
+            }
+        }
+        for (int i = 0; i < rooms.size(); i++) {
+            if (rooms.get(i).getId() == roomId) {
+                rooms.remove(i);
+                saveRooms();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public ArrayList<Booking> searchBookings(String query) {
+        ArrayList<Booking> results = new ArrayList<>();
+        query = query.toLowerCase().trim();
+
+        for (Booking b : bookings) {
+            if (b.getUsername().toLowerCase().contains(query) ||
+                String.valueOf(b.getBookingId()).contains(query) ||
+                String.valueOf(b.getRoomId()).contains(query) ||
+                b.getRoomType().toLowerCase().contains(query) ||
+                b.getStatus().toLowerCase().contains(query)) {
+                results.add(b);
+            }
+        }
+        return results;
+    }
 }
 
 // =============== Main GUI Application ===============
@@ -340,6 +426,7 @@ public class HotelReservationSystem extends JFrame {
     private static final Color SECONDARY_COLOR = new Color(76, 175, 80);
     private static final Color ACCENT_COLOR = new Color(255, 152, 0);
     private static final Color DANGER_COLOR = new Color(244, 67, 54);
+    private static final Color ADMIN_COLOR = new Color(156, 39, 176);
     private static final Color BACKGROUND_COLOR = new Color(245, 245, 245);
     private static final Color CARD_COLOR = Color.WHITE;
 
@@ -365,6 +452,9 @@ public class HotelReservationSystem extends JFrame {
         mainPanel.add(createBookRoomPanel(), "BOOK_ROOM");
         mainPanel.add(createViewBookingsPanel(), "VIEW_BOOKINGS");
         mainPanel.add(createBookingHistoryPanel(), "BOOKING_HISTORY");
+        mainPanel.add(createAdminPanelDashboard(), "ADMIN_DASHBOARD");
+        mainPanel.add(createManageRoomsPanel(), "MANAGE_ROOMS");
+        mainPanel.add(createViewAllBookingsPanel(), "VIEW_ALL_BOOKINGS");
 
         add(mainPanel);
         cardLayout.show(mainPanel, "LOGIN");
@@ -437,7 +527,11 @@ public class HotelReservationSystem extends JFrame {
             if (user != null) {
                 currentUser = user;
                 updateAllPanels();
-                cardLayout.show(mainPanel, "DASHBOARD");
+                if (user.isAdmin()) {
+                    cardLayout.show(mainPanel, "ADMIN_DASHBOARD");
+                } else {
+                    cardLayout.show(mainPanel, "DASHBOARD");
+                }
                 JOptionPane.showMessageDialog(this, "Login Successful! Welcome, " + username, "Success", JOptionPane.INFORMATION_MESSAGE);
             } else {
                 JOptionPane.showMessageDialog(this, "Invalid username or password!", "Login Failed", JOptionPane.ERROR_MESSAGE);
@@ -661,6 +755,213 @@ public class HotelReservationSystem extends JFrame {
         panel.add(mainContent, BorderLayout.CENTER);
 
         panel.putClientProperty("userLabel", userLabel);
+
+        return panel;
+    }
+
+    // =============== ADMIN DASHBOARD ===============
+    private JPanel createAdminPanelDashboard() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(BACKGROUND_COLOR);
+
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(ADMIN_COLOR);
+        headerPanel.setPreferredSize(new Dimension(1200, 120));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JLabel titleLabel = new JLabel("Admin Dashboard");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        titleLabel.setForeground(Color.WHITE);
+
+        JLabel adminLabel = new JLabel("Administrator Panel");
+        adminLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+        adminLabel.setForeground(new Color(220, 220, 220));
+
+        JPanel textPanel = new JPanel();
+        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+        textPanel.setBackground(ADMIN_COLOR);
+        textPanel.add(titleLabel);
+        textPanel.add(adminLabel);
+
+        headerPanel.add(textPanel, BorderLayout.WEST);
+
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new GridLayout(1, 2, 20, 20));
+        contentPanel.setBackground(BACKGROUND_COLOR);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+
+        JPanel manageRoomsCard = createDashboardCard("Manage Rooms", SECONDARY_COLOR, e -> {
+            updateAllPanels();
+            cardLayout.show(mainPanel, "MANAGE_ROOMS");
+        });
+        JPanel viewBookingsCard = createDashboardCard("View All Bookings", PRIMARY_COLOR, e -> {
+            updateAllPanels();
+            cardLayout.show(mainPanel, "VIEW_ALL_BOOKINGS");
+        });
+
+        contentPanel.add(manageRoomsCard);
+        contentPanel.add(viewBookingsCard);
+
+        JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 15));
+        footerPanel.setBackground(BACKGROUND_COLOR);
+
+        JButton logoutButton = createStyledButton("Logout", DANGER_COLOR);
+        logoutButton.addActionListener(e -> {
+            currentUser = null;
+            cardLayout.show(mainPanel, "LOGIN");
+        });
+
+        footerPanel.add(logoutButton);
+
+        JPanel mainContent = new JPanel(new BorderLayout());
+        mainContent.setBackground(BACKGROUND_COLOR);
+        mainContent.add(contentPanel, BorderLayout.CENTER);
+        mainContent.add(footerPanel, BorderLayout.SOUTH);
+
+        panel.add(headerPanel, BorderLayout.NORTH);
+        panel.add(mainContent, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    // =============== MANAGE ROOMS PANEL ===============
+    private JPanel createManageRoomsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(BACKGROUND_COLOR);
+
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(SECONDARY_COLOR);
+        headerPanel.setPreferredSize(new Dimension(1200, 70));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+
+        JLabel titleLabel = new JLabel("Manage Rooms");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 26));
+        titleLabel.setForeground(Color.WHITE);
+
+        JButton backButton = createStyledButton("← Back", SECONDARY_COLOR);
+        backButton.addActionListener(e -> cardLayout.show(mainPanel, "ADMIN_DASHBOARD"));
+
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        headerPanel.add(backButton, BorderLayout.EAST);
+
+        JPanel contentPanel = new JPanel(new BorderLayout());
+        contentPanel.setBackground(BACKGROUND_COLOR);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        topPanel.setBackground(BACKGROUND_COLOR);
+
+        JButton addRoomButton = createStyledButton("+ Add Room", SECONDARY_COLOR);
+        addRoomButton.addActionListener(e -> {
+            showAddRoomDialog();
+            updateAllPanels();
+        });
+
+        topPanel.add(addRoomButton);
+        contentPanel.add(topPanel, BorderLayout.NORTH);
+
+        JPanel roomsPanel = new JPanel();
+        roomsPanel.setLayout(new BoxLayout(roomsPanel, BoxLayout.Y_AXIS));
+        roomsPanel.setBackground(BACKGROUND_COLOR);
+
+        JScrollPane scrollPane = new JScrollPane(roomsPanel);
+        scrollPane.setBackground(BACKGROUND_COLOR);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+
+        contentPanel.add(scrollPane, BorderLayout.CENTER);
+
+        panel.add(headerPanel, BorderLayout.NORTH);
+        panel.add(contentPanel, BorderLayout.CENTER);
+
+        panel.putClientProperty("roomsContent", roomsPanel);
+
+        return panel;
+    }
+
+    // =============== VIEW ALL BOOKINGS PANEL ===============
+    private JPanel createViewAllBookingsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(BACKGROUND_COLOR);
+
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(PRIMARY_COLOR);
+        headerPanel.setPreferredSize(new Dimension(1200, 70));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+
+        JLabel titleLabel = new JLabel("All Bookings");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 26));
+        titleLabel.setForeground(Color.WHITE);
+
+        JButton backButton = createStyledButton("← Back", PRIMARY_COLOR);
+        backButton.addActionListener(e -> cardLayout.show(mainPanel, "ADMIN_DASHBOARD"));
+
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        headerPanel.add(backButton, BorderLayout.EAST);
+
+        JPanel contentPanel = new JPanel(new BorderLayout());
+        contentPanel.setBackground(BACKGROUND_COLOR);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        searchPanel.setBackground(BACKGROUND_COLOR);
+
+        JLabel searchLabel = new JLabel("Search:");
+        searchLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+
+        JTextField searchField = new JTextField();
+        searchField.setFont(new Font("Arial", Font.PLAIN, 13));
+        searchField.setPreferredSize(new Dimension(300, 35));
+        searchField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
+
+        JButton searchButton = createStyledButton("Search", PRIMARY_COLOR);
+
+        searchPanel.add(searchLabel);
+        searchPanel.add(searchField);
+        searchPanel.add(searchButton);
+
+        contentPanel.add(searchPanel, BorderLayout.NORTH);
+
+        JPanel bookingsPanel = new JPanel();
+        bookingsPanel.setLayout(new BoxLayout(bookingsPanel, BoxLayout.Y_AXIS));
+        bookingsPanel.setBackground(BACKGROUND_COLOR);
+
+        JScrollPane scrollPane = new JScrollPane(bookingsPanel);
+        scrollPane.setBackground(BACKGROUND_COLOR);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+
+        searchButton.addActionListener(e -> {
+            String query = searchField.getText().trim();
+            bookingsPanel.removeAll();
+
+            ArrayList<Booking> results;
+            if (query.isEmpty()) {
+                results = hotelManager.getAllBookings();
+            } else {
+                results = hotelManager.searchBookings(query);
+            }
+
+            if (results.isEmpty()) {
+                JLabel noResultsLabel = new JLabel("No bookings found!");
+                noResultsLabel.setFont(new Font("Arial", Font.ITALIC, 16));
+                noResultsLabel.setForeground(new Color(100, 100, 100));
+                bookingsPanel.add(noResultsLabel);
+            } else {
+                for (Booking booking : results) {
+                    JPanel bookingCard = createAdminBookingCard(booking);
+                    bookingsPanel.add(bookingCard);
+                    bookingsPanel.add(Box.createVerticalStrut(10));
+                }
+            }
+            bookingsPanel.revalidate();
+            bookingsPanel.repaint();
+        });
+
+        contentPanel.add(scrollPane, BorderLayout.CENTER);
+
+        panel.add(headerPanel, BorderLayout.NORTH);
+        panel.add(contentPanel, BorderLayout.CENTER);
+
+        panel.putClientProperty("bookingsPanel", bookingsPanel);
 
         return panel;
     }
@@ -892,6 +1193,111 @@ public class HotelReservationSystem extends JFrame {
     }
 
     // =============== Helper Methods ===============
+    private void showAddRoomDialog() {
+        JDialog dialog = new JDialog(this, "Add New Room", true);
+        dialog.setSize(400, 350);
+        dialog.setLocationRelativeTo(this);
+        dialog.setResizable(false);
+
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(CARD_COLOR);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JTextField idField = new JTextField();
+        idField.setFont(new Font("Arial", Font.PLAIN, 12));
+        idField.setPreferredSize(new Dimension(250, 35));
+
+        JTextField typeField = new JTextField();
+        typeField.setFont(new Font("Arial", Font.PLAIN, 12));
+        typeField.setPreferredSize(new Dimension(250, 35));
+
+        JTextField priceField = new JTextField();
+        priceField.setFont(new Font("Arial", Font.PLAIN, 12));
+
+        JSpinner capacitySpinner = new JSpinner(new SpinnerNumberModel(2, 1, 10, 1));
+
+        JTextArea descriptionArea = new JTextArea(3, 20);
+        descriptionArea.setFont(new Font("Arial", Font.PLAIN, 12));
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(new JLabel("Room ID:"), gbc);
+        gbc.gridx = 1;
+        panel.add(idField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        panel.add(new JLabel("Room Type:"), gbc);
+        gbc.gridx = 1;
+        panel.add(typeField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        panel.add(new JLabel("Price:"), gbc);
+        gbc.gridx = 1;
+        panel.add(priceField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        panel.add(new JLabel("Capacity:"), gbc);
+        gbc.gridx = 1;
+        panel.add(capacitySpinner, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        panel.add(new JLabel("Description:"), gbc);
+        gbc.gridx = 1;
+        panel.add(new JScrollPane(descriptionArea), gbc);
+
+        JButton addButton = createStyledButton("Add Room", SECONDARY_COLOR);
+        addButton.addActionListener(e -> {
+            try {
+                int id = Integer.parseInt(idField.getText().trim());
+                String type = typeField.getText().trim();
+                double price = Double.parseDouble(priceField.getText().trim());
+                int capacity = (Integer) capacitySpinner.getValue();
+                String description = descriptionArea.getText().trim();
+
+                if (type.isEmpty() || description.isEmpty()) {
+                    JOptionPane.showMessageDialog(dialog, "Please fill all fields!", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                Room newRoom = new Room(id, type, price, description, capacity);
+                if (hotelManager.addRoom(newRoom)) {
+                    JOptionPane.showMessageDialog(dialog, "Room added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    updateAllPanels();
+                    dialog.dispose();
+                } else {
+                    JOptionPane.showMessageDialog(dialog, "Room ID already exists!", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog, "Please enter valid values!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        JButton cancelButton = createStyledButton("Cancel", DANGER_COLOR);
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        buttonPanel.setBackground(CARD_COLOR);
+        buttonPanel.add(addButton);
+        buttonPanel.add(cancelButton);
+
+        gbc.gridx = 0;
+        gbc.gridy = 5;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(20, 10, 10, 10);
+        panel.add(buttonPanel, gbc);
+
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+
     private JPanel createCard(int width, int height) {
         JPanel panel = new JPanel();
         panel.setBackground(CARD_COLOR);
@@ -997,6 +1403,51 @@ public class HotelReservationSystem extends JFrame {
         return panel;
     }
 
+    private JPanel createAdminRoomCard(Room room) {
+        JPanel panel = createCard(900, 120);
+        panel.setLayout(new BorderLayout());
+        panel.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
+
+        JPanel infoPanel = new JPanel();
+        infoPanel.setBackground(CARD_COLOR);
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 10));
+
+        JLabel roomLabel = new JLabel(room.toString());
+        roomLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+
+        infoPanel.add(roomLabel);
+
+        panel.add(infoPanel, BorderLayout.CENTER);
+
+        JButton removeButton = createStyledButton("Remove", DANGER_COLOR);
+        removeButton.setPreferredSize(new Dimension(110, 35));
+        removeButton.addActionListener(e -> {
+            int option = JOptionPane.showConfirmDialog(this,
+                    "Are you sure you want to remove room #" + room.getId() + "?",
+                    "Confirm Removal",
+                    JOptionPane.YES_NO_OPTION);
+
+            if (option == JOptionPane.YES_OPTION) {
+                if (hotelManager.removeRoom(room.getId())) {
+                    JOptionPane.showMessageDialog(this, "Room removed successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    updateAllPanels();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Cannot remove room! Active bookings exist.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setBackground(CARD_COLOR);
+        buttonPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 10, 10));
+        buttonPanel.add(removeButton);
+
+        panel.add(buttonPanel, BorderLayout.EAST);
+
+        return panel;
+    }
+
     private JPanel createBookingCard(Booking booking) {
         JPanel panel = createCard(900, 120);
         panel.setLayout(new BorderLayout());
@@ -1046,6 +1497,56 @@ public class HotelReservationSystem extends JFrame {
         return panel;
     }
 
+    private JPanel createAdminBookingCard(Booking booking) {
+        JPanel panel = createCard(900, 120);
+        panel.setLayout(new BorderLayout());
+        panel.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
+
+        JPanel infoPanel = new JPanel();
+        infoPanel.setBackground(CARD_COLOR);
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 10));
+
+        JLabel bookingLabel = new JLabel(booking.toString());
+        bookingLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+
+        JLabel statusLabel = new JLabel("Status: " + booking.getStatus());
+        statusLabel.setFont(new Font("Arial", Font.BOLD, 12));
+        statusLabel.setForeground(booking.getStatus().equals("CONFIRMED") ? SECONDARY_COLOR : DANGER_COLOR);
+
+        infoPanel.add(bookingLabel);
+        infoPanel.add(statusLabel);
+
+        panel.add(infoPanel, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createBookingHistoryCard(Booking booking) {
+        JPanel panel = createCard(900, 110);
+        panel.setLayout(new BorderLayout());
+        panel.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
+
+        JPanel infoPanel = new JPanel();
+        infoPanel.setBackground(CARD_COLOR);
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 10));
+
+        JLabel bookingLabel = new JLabel(booking.toString());
+        bookingLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+
+        JLabel statusLabel = new JLabel("Status: " + booking.getStatus());
+        statusLabel.setFont(new Font("Arial", Font.BOLD, 12));
+        statusLabel.setForeground(booking.getStatus().equals("CONFIRMED") ? SECONDARY_COLOR : DANGER_COLOR);
+
+        infoPanel.add(bookingLabel);
+        infoPanel.add(statusLabel);
+
+        panel.add(infoPanel, BorderLayout.CENTER);
+
+        return panel;
+    }
+
     private LocalDate convertToLocalDate(java.util.Date date) {
         return date.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
     }
@@ -1066,7 +1567,7 @@ public class HotelReservationSystem extends JFrame {
         // Update View Rooms
         for (Component c : mainPanel.getComponents()) {
             JPanel p = (JPanel) c;
-            if (p.getClientProperty("roomsContent") != null) {
+            if (p.getClientProperty("roomsContent") != null && p.getClientProperty("bookingsContent") == null) {
                 JPanel roomsContent = (JPanel) p.getClientProperty("roomsContent");
                 roomsContent.removeAll();
                 for (Room room : hotelManager.getAllRooms()) {
@@ -1076,6 +1577,37 @@ public class HotelReservationSystem extends JFrame {
                 }
                 roomsContent.revalidate();
                 roomsContent.repaint();
+                break;
+            }
+        }
+
+        // Update Manage Rooms (Admin)
+        for (Component c : mainPanel.getComponents()) {
+            JPanel p = (JPanel) c;
+            if (p.getClientProperty("roomsContent") != null && currentUser.isAdmin()) {
+                Component[] components = mainPanel.getComponents();
+                for (Component comp : components) {
+                    JPanel panel = (JPanel) comp;
+                    Component[] children = panel.getComponents();
+                    for (Component child : children) {
+                        if (child instanceof JPanel) {
+                            JPanel innerPanel = (JPanel) child;
+                            if (innerPanel.getClientProperty("roomsContent") != null) {
+                                JPanel manageRoomsContent = (JPanel) innerPanel.getClientProperty("roomsContent");
+                                if (manageRoomsContent != null) {
+                                    manageRoomsContent.removeAll();
+                                    for (Room room : hotelManager.getAllRooms()) {
+                                        JPanel roomCard = createAdminRoomCard(room);
+                                        manageRoomsContent.add(roomCard);
+                                        manageRoomsContent.add(Box.createVerticalStrut(10));
+                                    }
+                                    manageRoomsContent.revalidate();
+                                    manageRoomsContent.repaint();
+                                }
+                            }
+                        }
+                    }
+                }
                 break;
             }
         }
@@ -1097,7 +1629,7 @@ public class HotelReservationSystem extends JFrame {
         // Update View Bookings
         for (Component c : mainPanel.getComponents()) {
             JPanel p = (JPanel) c;
-            if (p.getClientProperty("bookingsContent") != null) {
+            if (p.getClientProperty("bookingsContent") != null && p.getClientProperty("historyContent") == null) {
                 JPanel bookingsContent = (JPanel) p.getClientProperty("bookingsContent");
                 bookingsContent.removeAll();
 
@@ -1159,31 +1691,6 @@ public class HotelReservationSystem extends JFrame {
                 break;
             }
         }
-    }
-
-    private JPanel createBookingHistoryCard(Booking booking) {
-        JPanel panel = createCard(900, 110);
-        panel.setLayout(new BorderLayout());
-        panel.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
-
-        JPanel infoPanel = new JPanel();
-        infoPanel.setBackground(CARD_COLOR);
-        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
-        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 10));
-
-        JLabel bookingLabel = new JLabel(booking.toString());
-        bookingLabel.setFont(new Font("Arial", Font.PLAIN, 12));
-
-        JLabel statusLabel = new JLabel("Status: " + booking.getStatus());
-        statusLabel.setFont(new Font("Arial", Font.BOLD, 12));
-        statusLabel.setForeground(booking.getStatus().equals("CONFIRMED") ? SECONDARY_COLOR : DANGER_COLOR);
-
-        infoPanel.add(bookingLabel);
-        infoPanel.add(statusLabel);
-
-        panel.add(infoPanel, BorderLayout.CENTER);
-
-        return panel;
     }
 
     public static void main(String[] args) {
