@@ -1,12 +1,177 @@
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.border.AbstractBorder;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.RoundRectangle2D;
 import java.io.*;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+
+// =============== Colors Theme ===============
+class ThemeColors {
+    static final Color PRIMARY = new Color(26, 115, 232);
+    static final Color PRIMARY_DARK = new Color(25, 103, 210);
+    static final Color PRIMARY_LIGHT = new Color(227, 242, 253);
+    static final Color SECONDARY = new Color(52, 168, 83);
+    static final Color SUCCESS = new Color(52, 168, 83);
+    static final Color WARNING = new Color(251, 188, 4);
+    static final Color DANGER = new Color(234, 67, 54);
+    static final Color INFO = new Color(3, 155, 229);
+    static final Color ADMIN = new Color(156, 39, 172);
+    
+    static final Color WHITE = new Color(255, 255, 255);
+    static final Color LIGHT_GRAY = new Color(248, 249, 250);
+    static final Color GRAY = new Color(189, 189, 189);
+    static final Color DARK_GRAY = new Color(97, 97, 97);
+    static final Color TEXT_DARK = new Color(32, 33, 36);
+    static final Color BG_LIGHT = new Color(245, 245, 245);
+    static final Color CARD_BG = new Color(255, 255, 255);
+}
+
+// =============== Rounded Border ===============
+class RoundedBorder extends AbstractBorder {
+    private int radius;
+    private Color color;
+    private int thickness;
+
+    public RoundedBorder(int radius, Color color, int thickness) {
+        this.radius = radius;
+        this.color = color;
+        this.thickness = thickness;
+    }
+
+    @Override
+    public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setColor(color);
+        g2d.setStroke(new BasicStroke(thickness));
+        g2d.drawRoundRect(x, y, width - 1, height - 1, radius, radius);
+    }
+
+    @Override
+    public Insets getBorderInsets(Component c) {
+        return new Insets(thickness, thickness, thickness, thickness);
+    }
+}
+
+// =============== Rounded Panel ===============
+class RoundedPanel extends JPanel {
+    private int cornerRadius;
+    private Color backgroundColor;
+
+    public RoundedPanel(int radius) {
+        this.cornerRadius = radius;
+        this.backgroundColor = ThemeColors.CARD_BG;
+        setOpaque(false);
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        g2d.setColor(backgroundColor);
+        g2d.fillRoundRect(0, 0, getWidth(), getHeight(), cornerRadius, cornerRadius);
+        
+        g2d.setColor(new Color(0, 0, 0, 15));
+        g2d.fillRoundRect(2, 2, getWidth() - 2, getHeight() - 2, cornerRadius, cornerRadius);
+        
+        super.paintComponent(g);
+    }
+
+    public void setBackgroundColor(Color color) {
+        this.backgroundColor = color;
+        repaint();
+    }
+}
+
+// =============== Gradient Panel ===============
+class GradientPanel extends JPanel {
+    private Color color1;
+    private Color color2;
+
+    public GradientPanel(Color c1, Color c2) {
+        this.color1 = c1;
+        this.color2 = c2;
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        GradientPaint gradient = new GradientPaint(0, 0, color1, getWidth(), getHeight(), color2);
+        g2d.setPaint(gradient);
+        g2d.fillRect(0, 0, getWidth(), getHeight());
+        super.paintComponent(g);
+    }
+}
+
+// =============== Modern Button ===============
+class ModernButton extends JButton {
+    private Color defaultColor;
+    private Color hoverColor;
+    private Color pressedColor;
+    private int radius = 10;
+
+    public ModernButton(String text, Color color) {
+        super(text);
+        this.defaultColor = color;
+        this.hoverColor = color.darker();
+        this.pressedColor = color.darker().darker();
+        
+        setFont(new Font("Segoe UI", Font.BOLD, 14));
+        setForeground(Color.WHITE);
+        setBackground(defaultColor);
+        setFocusPainted(false);
+        setBorderPainted(false);
+        setContentAreaFilled(false);
+        setCursor(new Cursor(Cursor.HAND_CURSOR));
+        setPreferredSize(new Dimension(140, 45));
+        
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                setBackground(hoverColor);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                setBackground(defaultColor);
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                setBackground(pressedColor);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                setBackground(hoverColor);
+            }
+        });
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        g2d.setColor(getBackground());
+        g2d.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
+        
+        super.paintComponent(g);
+    }
+
+    @Override
+    protected void paintBorder(Graphics g) {
+    }
+}
 
 // =============== User Class ===============
 class User implements Serializable {
@@ -36,12 +201,7 @@ class User implements Serializable {
     public void setAdmin(boolean admin) { isAdmin = admin; }
     public void setEmail(String email) { this.email = email; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
-
-    @Override
-    public String toString() {
-        return "User{" + "username='" + username + '\'' + ", email='" + email + '\'' +
-                ", phoneNumber='" + phoneNumber + '\'' + ", isAdmin=" + isAdmin + ", createdAt=" + createdAt + '}';
-    }
+    public void setPassword(String password) { this.password = password; }
 }
 
 // =============== Room Class ===============
@@ -236,10 +396,6 @@ class AuthenticationController {
         return null;
     }
 
-    public boolean userExists(String username) {
-        return users.containsKey(username);
-    }
-
     public void saveUsers() {
         DatabaseManager.saveUsers(users);
     }
@@ -413,6 +569,35 @@ class HotelManager {
         }
         return results;
     }
+
+    public int getTotalBookings() {
+        return bookings.size();
+    }
+
+    public int getConfirmedBookings() {
+        int count = 0;
+        for (Booking b : bookings) {
+            if (b.getStatus().equals("CONFIRMED")) count++;
+        }
+        return count;
+    }
+
+    public double getTotalRevenue() {
+        double total = 0;
+        for (Booking b : bookings) {
+            if (b.getStatus().equals("CONFIRMED")) total += b.getTotalPrice();
+        }
+        return total;
+    }
+
+    public double getOccupancyRate() {
+        if (rooms.isEmpty()) return 0;
+        int bookedRooms = 0;
+        for (Room r : rooms) {
+            if (!r.isAvailable()) bookedRooms++;
+        }
+        return (bookedRooms * 100.0) / rooms.size();
+    }
 }
 
 // =============== Main GUI Application ===============
@@ -422,13 +607,6 @@ public class HotelReservationSystem extends JFrame {
     private User currentUser;
     private CardLayout cardLayout;
     private JPanel mainPanel;
-    private static final Color PRIMARY_COLOR = new Color(25, 118, 211);
-    private static final Color SECONDARY_COLOR = new Color(76, 175, 80);
-    private static final Color ACCENT_COLOR = new Color(255, 152, 0);
-    private static final Color DANGER_COLOR = new Color(244, 67, 54);
-    private static final Color ADMIN_COLOR = new Color(156, 39, 176);
-    private static final Color BACKGROUND_COLOR = new Color(245, 245, 245);
-    private static final Color CARD_COLOR = Color.WHITE;
 
     public HotelReservationSystem() {
         authController = new AuthenticationController();
@@ -436,23 +614,24 @@ public class HotelReservationSystem extends JFrame {
 
         setTitle("Hotel Reservation System");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1200, 800);
+        setSize(1400, 900);
         setLocationRelativeTo(null);
-        setResizable(false);
-        setBackground(BACKGROUND_COLOR);
+        setResizable(true);
+        setBackground(ThemeColors.BG_LIGHT);
 
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
-        mainPanel.setBackground(BACKGROUND_COLOR);
+        mainPanel.setBackground(ThemeColors.BG_LIGHT);
 
         mainPanel.add(createLoginPanel(), "LOGIN");
         mainPanel.add(createSignUpPanel(), "SIGNUP");
         mainPanel.add(createDashboardPanel(), "DASHBOARD");
         mainPanel.add(createViewRoomsPanel(), "VIEW_ROOMS");
         mainPanel.add(createBookRoomPanel(), "BOOK_ROOM");
-        mainPanel.add(createViewBookingsPanel(), "VIEW_BOOKINGS");
-        mainPanel.add(createBookingHistoryPanel(), "BOOKING_HISTORY");
-        mainPanel.add(createAdminPanelDashboard(), "ADMIN_DASHBOARD");
+        mainPanel.add(createMyBookingsPanel(), "MY_BOOKINGS");
+        mainPanel.add(createSpecialOffersPanel(), "SPECIAL_OFFERS");
+        mainPanel.add(createProfilePanel(), "PROFILE");
+        mainPanel.add(createAdminDashboard(), "ADMIN_DASHBOARD");
         mainPanel.add(createManageRoomsPanel(), "MANAGE_ROOMS");
         mainPanel.add(createViewAllBookingsPanel(), "VIEW_ALL_BOOKINGS");
 
@@ -461,65 +640,84 @@ public class HotelReservationSystem extends JFrame {
         setVisible(true);
     }
 
-    // =============== LOGIN PANEL ===============
     private JPanel createLoginPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BACKGROUND_COLOR);
+        panel.setBackground(ThemeColors.BG_LIGHT);
 
-        JPanel headerPanel = new JPanel();
-        headerPanel.setBackground(PRIMARY_COLOR);
-        headerPanel.setPreferredSize(new Dimension(1200, 100));
-        JLabel titleLabel = new JLabel("Hotel Reservation System");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 32));
-        titleLabel.setForeground(Color.WHITE);
-        headerPanel.add(titleLabel);
+        JPanel headerPanel = new GradientPanel(ThemeColors.PRIMARY, ThemeColors.PRIMARY_DARK);
+        headerPanel.setPreferredSize(new Dimension(1400, 150));
+        headerPanel.setLayout(new BorderLayout());
+
+        JLabel logoLabel = new JLabel("🏨 HOTEL HUB");
+        logoLabel.setFont(new Font("Segoe UI", Font.BOLD, 52));
+        logoLabel.setForeground(Color.WHITE);
+        logoLabel.setOpaque(false);
+        logoLabel.setBorder(BorderFactory.createEmptyBorder(20, 50, 5, 0));
+
+        JLabel taglineLabel = new JLabel("Premium Hotel Reservation System");
+        taglineLabel.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        taglineLabel.setForeground(new Color(240, 240, 240));
+        taglineLabel.setOpaque(false);
+        taglineLabel.setBorder(BorderFactory.createEmptyBorder(0, 50, 30, 0));
+
+        JPanel titlePanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+            }
+        };
+        titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.Y_AXIS));
+        titlePanel.setOpaque(false);
+        titlePanel.add(logoLabel);
+        titlePanel.add(taglineLabel);
+
+        headerPanel.add(titlePanel, BorderLayout.WEST);
 
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new GridBagLayout());
-        contentPanel.setBackground(BACKGROUND_COLOR);
+        contentPanel.setBackground(ThemeColors.BG_LIGHT);
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(20, 20, 20, 20);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(30, 30, 30, 30);
 
-        JPanel cardPanel = createCard(400, 300);
+        RoundedPanel cardPanel = new RoundedPanel(20);
         cardPanel.setLayout(new GridBagLayout());
+        cardPanel.setPreferredSize(new Dimension(450, 420));
 
-        JLabel loginLabel = new JLabel("Login to Your Account");
-        loginLabel.setFont(new Font("Arial", Font.BOLD, 20));
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 2;
-        gbc.insets = new Insets(15, 20, 20, 20);
-        cardPanel.add(loginLabel, gbc);
+        GridBagConstraints cardGbc = new GridBagConstraints();
+        cardGbc.insets = new Insets(15, 30, 15, 30);
+        cardGbc.fill = GridBagConstraints.HORIZONTAL;
 
-        JTextField usernameField = new JTextField();
-        usernameField.setFont(new Font("Arial", Font.PLAIN, 14));
-        usernameField.setPreferredSize(new Dimension(300, 40));
-        usernameField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.gridwidth = 2;
-        gbc.insets = new Insets(10, 20, 10, 20);
-        cardPanel.add(createLabeledField("Username:", usernameField), gbc);
+        JLabel loginLabel = new JLabel("👤 Login");
+        loginLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        loginLabel.setForeground(ThemeColors.PRIMARY);
+        cardGbc.gridx = 0;
+        cardGbc.gridy = 0;
+        cardGbc.gridwidth = 2;
+        cardGbc.insets = new Insets(20, 30, 30, 30);
+        cardPanel.add(loginLabel, cardGbc);
 
-        JPasswordField passwordField = new JPasswordField();
-        passwordField.setFont(new Font("Arial", Font.PLAIN, 14));
-        passwordField.setPreferredSize(new Dimension(300, 40));
-        passwordField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
-        gbc.gridy = 2;
-        cardPanel.add(createLabeledField("Password:", passwordField), gbc);
+        JTextField usernameField = createModernTextField("Username");
+        cardGbc.gridx = 0;
+        cardGbc.gridy = 1;
+        cardGbc.gridwidth = 2;
+        cardGbc.insets = new Insets(10, 30, 10, 30);
+        cardPanel.add(usernameField, cardGbc);
+
+        JPasswordField passwordField = createModernPasswordField("Password");
+        cardGbc.gridy = 2;
+        cardPanel.add(passwordField, cardGbc);
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 15, 0));
-        buttonPanel.setBackground(CARD_COLOR);
+        buttonPanel.setBackground(ThemeColors.CARD_BG);
 
-        JButton loginButton = createStyledButton("Login", PRIMARY_COLOR);
+        ModernButton loginButton = new ModernButton("Login", ThemeColors.PRIMARY);
         loginButton.addActionListener(e -> {
             String username = usernameField.getText().trim();
             String password = new String(passwordField.getPassword());
 
             if (username.isEmpty() || password.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Please fill all fields!", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                showCustomMessage("Please fill all fields!", "Warning");
                 return;
             }
 
@@ -532,14 +730,14 @@ public class HotelReservationSystem extends JFrame {
                 } else {
                     cardLayout.show(mainPanel, "DASHBOARD");
                 }
-                JOptionPane.showMessageDialog(this, "Login Successful! Welcome, " + username, "Success", JOptionPane.INFORMATION_MESSAGE);
+                showCustomMessage("Welcome, " + username + "!", "Success");
             } else {
-                JOptionPane.showMessageDialog(this, "Invalid username or password!", "Login Failed", JOptionPane.ERROR_MESSAGE);
+                showCustomMessage("Invalid credentials!", "Error");
                 passwordField.setText("");
             }
         });
 
-        JButton signUpButton = createStyledButton("Sign Up", SECONDARY_COLOR);
+        ModernButton signUpButton = new ModernButton("Sign Up", ThemeColors.SUCCESS);
         signUpButton.addActionListener(e -> {
             usernameField.setText("");
             passwordField.setText("");
@@ -549,11 +747,11 @@ public class HotelReservationSystem extends JFrame {
         buttonPanel.add(loginButton);
         buttonPanel.add(signUpButton);
 
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        gbc.gridwidth = 2;
-        gbc.insets = new Insets(30, 20, 15, 20);
-        cardPanel.add(buttonPanel, gbc);
+        cardGbc.gridx = 0;
+        cardGbc.gridy = 3;
+        cardGbc.gridwidth = 2;
+        cardGbc.insets = new Insets(30, 30, 20, 30);
+        cardPanel.add(buttonPanel, cardGbc);
 
         contentPanel.add(cardPanel);
 
@@ -563,73 +761,58 @@ public class HotelReservationSystem extends JFrame {
         return panel;
     }
 
-    // =============== SIGNUP PANEL ===============
     private JPanel createSignUpPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BACKGROUND_COLOR);
+        panel.setBackground(ThemeColors.BG_LIGHT);
 
-        JPanel headerPanel = new JPanel();
-        headerPanel.setBackground(SECONDARY_COLOR);
-        headerPanel.setPreferredSize(new Dimension(1200, 100));
-        JLabel titleLabel = new JLabel("Create Your Account");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 32));
+        JPanel headerPanel = new GradientPanel(ThemeColors.SUCCESS, new Color(76, 175, 83));
+        headerPanel.setPreferredSize(new Dimension(1400, 120));
+        headerPanel.setLayout(new BorderLayout());
+
+        JLabel titleLabel = new JLabel("✏️ Create Account");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 44));
         titleLabel.setForeground(Color.WHITE);
-        headerPanel.add(titleLabel);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(30, 50, 30, 0));
+
+        headerPanel.add(titleLabel, BorderLayout.WEST);
 
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new GridBagLayout());
-        contentPanel.setBackground(BACKGROUND_COLOR);
+        contentPanel.setBackground(ThemeColors.BG_LIGHT);
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(20, 20, 20, 20);
+        gbc.insets = new Insets(30, 30, 30, 30);
 
-        JPanel cardPanel = createCard(450, 400);
+        RoundedPanel cardPanel = new RoundedPanel(20);
         cardPanel.setLayout(new GridBagLayout());
+        cardPanel.setPreferredSize(new Dimension(500, 500));
+
         GridBagConstraints cardGbc = new GridBagConstraints();
-        cardGbc.insets = new Insets(10, 20, 10, 20);
+        cardGbc.insets = new Insets(10, 30, 10, 30);
         cardGbc.fill = GridBagConstraints.HORIZONTAL;
         cardGbc.gridwidth = 2;
 
-        JTextField usernameField = new JTextField();
-        usernameField.setFont(new Font("Arial", Font.PLAIN, 12));
-        usernameField.setPreferredSize(new Dimension(350, 35));
-        usernameField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
-
-        JPasswordField passwordField = new JPasswordField();
-        passwordField.setFont(new Font("Arial", Font.PLAIN, 12));
-        passwordField.setPreferredSize(new Dimension(350, 35));
-        passwordField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
-
-        JPasswordField confirmPasswordField = new JPasswordField();
-        confirmPasswordField.setFont(new Font("Arial", Font.PLAIN, 12));
-        confirmPasswordField.setPreferredSize(new Dimension(350, 35));
-        confirmPasswordField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
-
-        JTextField emailField = new JTextField();
-        emailField.setFont(new Font("Arial", Font.PLAIN, 12));
-        emailField.setPreferredSize(new Dimension(350, 35));
-        emailField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
-
-        JTextField phoneField = new JTextField();
-        phoneField.setFont(new Font("Arial", Font.PLAIN, 12));
-        phoneField.setPreferredSize(new Dimension(350, 35));
-        phoneField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
+        JTextField usernameField = createModernTextField("Username");
+        JPasswordField passwordField = createModernPasswordField("Password");
+        JPasswordField confirmPasswordField = createModernPasswordField("Confirm Password");
+        JTextField emailField = createModernTextField("Email");
+        JTextField phoneField = createModernTextField("Phone (10 digits)");
 
         cardGbc.gridy = 0;
-        cardPanel.add(createLabeledField("Username:", usernameField), cardGbc);
+        cardPanel.add(usernameField, cardGbc);
         cardGbc.gridy = 1;
-        cardPanel.add(createLabeledField("Password:", passwordField), cardGbc);
+        cardPanel.add(passwordField, cardGbc);
         cardGbc.gridy = 2;
-        cardPanel.add(createLabeledField("Confirm Password:", confirmPasswordField), cardGbc);
+        cardPanel.add(confirmPasswordField, cardGbc);
         cardGbc.gridy = 3;
-        cardPanel.add(createLabeledField("Email:", emailField), cardGbc);
+        cardPanel.add(emailField, cardGbc);
         cardGbc.gridy = 4;
-        cardPanel.add(createLabeledField("Phone (10 digits):", phoneField), cardGbc);
+        cardPanel.add(phoneField, cardGbc);
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 15, 0));
-        buttonPanel.setBackground(CARD_COLOR);
+        buttonPanel.setBackground(ThemeColors.CARD_BG);
 
-        JButton signUpButton = createStyledButton("Sign Up", SECONDARY_COLOR);
+        ModernButton signUpButton = new ModernButton("Sign Up", ThemeColors.SUCCESS);
         signUpButton.addActionListener(e -> {
             String username = usernameField.getText().trim();
             String password = new String(passwordField.getPassword());
@@ -638,17 +821,17 @@ public class HotelReservationSystem extends JFrame {
             String phone = phoneField.getText().trim();
 
             if (username.isEmpty() || password.isEmpty() || email.isEmpty() || phone.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Please fill all fields!", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                showCustomMessage("Please fill all fields!", "Warning");
                 return;
             }
 
             if (!password.equals(confirmPassword)) {
-                JOptionPane.showMessageDialog(this, "Passwords don't match!", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                showCustomMessage("Passwords don't match!", "Warning");
                 return;
             }
 
             if (authController.register(username, password, confirmPassword, email, phone)) {
-                JOptionPane.showMessageDialog(this, "Account created successfully! You can now login.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                showCustomMessage("Account created! You can now login.", "Success");
                 usernameField.setText("");
                 passwordField.setText("");
                 confirmPasswordField.setText("");
@@ -656,11 +839,11 @@ public class HotelReservationSystem extends JFrame {
                 phoneField.setText("");
                 cardLayout.show(mainPanel, "LOGIN");
             } else {
-                JOptionPane.showMessageDialog(this, "Sign up failed! Please check your inputs or username already exists.", "Error", JOptionPane.ERROR_MESSAGE);
+                showCustomMessage("Sign up failed! Check inputs or username exists.", "Error");
             }
         });
 
-        JButton backButton = createStyledButton("Back to Login", new Color(158, 158, 158));
+        ModernButton backButton = new ModernButton("← Back", ThemeColors.GRAY);
         backButton.addActionListener(e -> {
             usernameField.setText("");
             passwordField.setText("");
@@ -674,7 +857,7 @@ public class HotelReservationSystem extends JFrame {
         buttonPanel.add(backButton);
 
         cardGbc.gridy = 5;
-        cardGbc.insets = new Insets(25, 20, 15, 20);
+        cardGbc.insets = new Insets(25, 30, 20, 30);
         cardPanel.add(buttonPanel, cardGbc);
 
         contentPanel.add(cardPanel);
@@ -685,60 +868,82 @@ public class HotelReservationSystem extends JFrame {
         return panel;
     }
 
-    // =============== DASHBOARD PANEL ===============
     private JPanel createDashboardPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BACKGROUND_COLOR);
+        panel.setBackground(ThemeColors.BG_LIGHT);
 
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(PRIMARY_COLOR);
-        headerPanel.setPreferredSize(new Dimension(1200, 120));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        JPanel headerPanel = new GradientPanel(ThemeColors.PRIMARY, ThemeColors.PRIMARY_DARK);
+        headerPanel.setPreferredSize(new Dimension(1400, 160));
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30));
 
-        JLabel titleLabel = new JLabel("Dashboard");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        JLabel titleLabel = new JLabel("📊 Dashboard");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 48));
         titleLabel.setForeground(Color.WHITE);
+        titleLabel.setOpaque(false);
 
         JLabel userLabel = new JLabel();
-        userLabel.setFont(new Font("Arial", Font.PLAIN, 13));
-        userLabel.setForeground(new Color(220, 220, 220));
+        userLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        userLabel.setForeground(new Color(240, 240, 240));
+        userLabel.setOpaque(false);
 
-        JPanel textPanel = new JPanel();
+        JPanel textPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+            }
+        };
         textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.setBackground(PRIMARY_COLOR);
+        textPanel.setOpaque(false);
         textPanel.add(titleLabel);
         textPanel.add(userLabel);
 
         headerPanel.add(textPanel, BorderLayout.WEST);
 
         JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new GridLayout(2, 2, 20, 20));
-        contentPanel.setBackground(BACKGROUND_COLOR);
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+        contentPanel.setLayout(new GridLayout(2, 3, 25, 25));
+        contentPanel.setBackground(ThemeColors.BG_LIGHT);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(40, 40, 40, 40));
 
-        JPanel viewRoomsCard = createDashboardCard("View Available Rooms", SECONDARY_COLOR, e -> {
+        JPanel viewRoomsCard = createDashboardCard("🛏️ View Rooms", "Browse Available Rooms", ThemeColors.SECONDARY, e -> {
             updateAllPanels();
             cardLayout.show(mainPanel, "VIEW_ROOMS");
         });
-        JPanel bookRoomCard = createDashboardCard("Book a Room", ACCENT_COLOR, e -> cardLayout.show(mainPanel, "BOOK_ROOM"));
-        JPanel viewBookingsCard = createDashboardCard("View My Bookings", PRIMARY_COLOR, e -> {
+        JPanel bookRoomCard = createDashboardCard("📅 Book Room", "Reserve Your Room", ThemeColors.WARNING, e -> cardLayout.show(mainPanel, "BOOK_ROOM"));
+        JPanel myBookingsCard = createDashboardCard("📝 My Bookings", "View Active Bookings", ThemeColors.PRIMARY, e -> {
             updateAllPanels();
-            cardLayout.show(mainPanel, "VIEW_BOOKINGS");
+            cardLayout.show(mainPanel, "MY_BOOKINGS");
         });
-        JPanel bookingHistoryCard = createDashboardCard("Booking History", new Color(103, 58, 183), e -> {
+        JPanel offersCard = createDashboardCard("🎁 Special Offers", "View Discounts & Deals", ThemeColors.WARNING, e -> {
             updateAllPanels();
-            cardLayout.show(mainPanel, "BOOKING_HISTORY");
+            cardLayout.show(mainPanel, "SPECIAL_OFFERS");
+        });
+        JPanel profileCard = createDashboardCard("👤 My Profile", "Edit Profile Info", ThemeColors.INFO, e -> {
+            updateAllPanels();
+            cardLayout.show(mainPanel, "PROFILE");
+        });
+        JPanel helpCard = createDashboardCard("❓ Help & Support", "Contact Us", new Color(233, 30, 99), e -> {
+            JOptionPane.showMessageDialog(this, 
+                "📞 Support Contact:\n\n" +
+                "Email: support@hotelHub.com\n" +
+                "Phone: +91-800-HOTEL-HUB\n" +
+                "WhatsApp: +91-9876543210\n\n" +
+                "Hours: 24/7 Customer Support",
+                "Help & Support",
+                JOptionPane.INFORMATION_MESSAGE);
         });
 
         contentPanel.add(viewRoomsCard);
         contentPanel.add(bookRoomCard);
-        contentPanel.add(viewBookingsCard);
-        contentPanel.add(bookingHistoryCard);
+        contentPanel.add(myBookingsCard);
+        contentPanel.add(offersCard);
+        contentPanel.add(profileCard);
+        contentPanel.add(helpCard);
 
         JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 15));
-        footerPanel.setBackground(BACKGROUND_COLOR);
+        footerPanel.setBackground(ThemeColors.BG_LIGHT);
 
-        JButton logoutButton = createStyledButton("Logout", DANGER_COLOR);
+        ModernButton logoutButton = new ModernButton("🚪 Logout", ThemeColors.DANGER);
         logoutButton.addActionListener(e -> {
             currentUser = null;
             cardLayout.show(mainPanel, "LOGIN");
@@ -747,7 +952,7 @@ public class HotelReservationSystem extends JFrame {
         footerPanel.add(logoutButton);
 
         JPanel mainContent = new JPanel(new BorderLayout());
-        mainContent.setBackground(BACKGROUND_COLOR);
+        mainContent.setBackground(ThemeColors.BG_LIGHT);
         mainContent.add(contentPanel, BorderLayout.CENTER);
         mainContent.add(footerPanel, BorderLayout.SOUTH);
 
@@ -759,42 +964,59 @@ public class HotelReservationSystem extends JFrame {
         return panel;
     }
 
-    // =============== ADMIN DASHBOARD ===============
-    private JPanel createAdminPanelDashboard() {
+    private JPanel createAdminDashboard() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BACKGROUND_COLOR);
+        panel.setBackground(ThemeColors.BG_LIGHT);
 
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(ADMIN_COLOR);
-        headerPanel.setPreferredSize(new Dimension(1200, 120));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        JPanel headerPanel = new GradientPanel(ThemeColors.ADMIN, new Color(142, 36, 170));
+        headerPanel.setPreferredSize(new Dimension(1400, 200));
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30));
 
-        JLabel titleLabel = new JLabel("Admin Dashboard");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
+        JLabel titleLabel = new JLabel("👑 Admin Dashboard");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 48));
         titleLabel.setForeground(Color.WHITE);
+        titleLabel.setOpaque(false);
 
-        JLabel adminLabel = new JLabel("Administrator Panel");
-        adminLabel.setFont(new Font("Arial", Font.PLAIN, 13));
-        adminLabel.setForeground(new Color(220, 220, 220));
+        JLabel subtitleLabel = new JLabel("System Administration & Analytics");
+        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        subtitleLabel.setForeground(new Color(240, 240, 240));
+        subtitleLabel.setOpaque(false);
 
-        JPanel textPanel = new JPanel();
+        JPanel textPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+            }
+        };
         textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.setBackground(ADMIN_COLOR);
+        textPanel.setOpaque(false);
         textPanel.add(titleLabel);
-        textPanel.add(adminLabel);
+        textPanel.add(subtitleLabel);
 
         headerPanel.add(textPanel, BorderLayout.WEST);
 
-        JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new GridLayout(1, 2, 20, 20));
-        contentPanel.setBackground(BACKGROUND_COLOR);
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+        JPanel statsPanel = new JPanel(new GridLayout(1, 4, 15, 0));
+        statsPanel.setOpaque(false);
+        statsPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 20));
 
-        JPanel manageRoomsCard = createDashboardCard("Manage Rooms", SECONDARY_COLOR, e -> {
+        statsPanel.add(createStatCard("📊 Total Bookings", "0", ThemeColors.INFO));
+        statsPanel.add(createStatCard("✅ Confirmed", "0", ThemeColors.SUCCESS));
+        statsPanel.add(createStatCard("💰 Revenue", "Rs.0", ThemeColors.WARNING));
+        statsPanel.add(createStatCard("🏨 Occupancy", "0%", ThemeColors.DANGER));
+
+        headerPanel.add(statsPanel, BorderLayout.EAST);
+
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new GridLayout(1, 2, 25, 25));
+        contentPanel.setBackground(ThemeColors.BG_LIGHT);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(40, 40, 40, 40));
+
+        JPanel manageRoomsCard = createDashboardCard("🔧 Manage Rooms", "Add/Remove Rooms", ThemeColors.SECONDARY, e -> {
             updateAllPanels();
             cardLayout.show(mainPanel, "MANAGE_ROOMS");
         });
-        JPanel viewBookingsCard = createDashboardCard("View All Bookings", PRIMARY_COLOR, e -> {
+        JPanel viewBookingsCard = createDashboardCard("📋 All Bookings", "System Bookings", ThemeColors.PRIMARY, e -> {
             updateAllPanels();
             cardLayout.show(mainPanel, "VIEW_ALL_BOOKINGS");
         });
@@ -803,9 +1025,9 @@ public class HotelReservationSystem extends JFrame {
         contentPanel.add(viewBookingsCard);
 
         JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 15));
-        footerPanel.setBackground(BACKGROUND_COLOR);
+        footerPanel.setBackground(ThemeColors.BG_LIGHT);
 
-        JButton logoutButton = createStyledButton("Logout", DANGER_COLOR);
+        ModernButton logoutButton = new ModernButton("🚪 Logout", ThemeColors.DANGER);
         logoutButton.addActionListener(e -> {
             currentUser = null;
             cardLayout.show(mainPanel, "LOGIN");
@@ -814,173 +1036,32 @@ public class HotelReservationSystem extends JFrame {
         footerPanel.add(logoutButton);
 
         JPanel mainContent = new JPanel(new BorderLayout());
-        mainContent.setBackground(BACKGROUND_COLOR);
+        mainContent.setBackground(ThemeColors.BG_LIGHT);
         mainContent.add(contentPanel, BorderLayout.CENTER);
         mainContent.add(footerPanel, BorderLayout.SOUTH);
 
         panel.add(headerPanel, BorderLayout.NORTH);
         panel.add(mainContent, BorderLayout.CENTER);
 
-        return panel;
-    }
-
-    // =============== MANAGE ROOMS PANEL ===============
-    private JPanel createManageRoomsPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BACKGROUND_COLOR);
-
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(SECONDARY_COLOR);
-        headerPanel.setPreferredSize(new Dimension(1200, 70));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
-
-        JLabel titleLabel = new JLabel("Manage Rooms");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 26));
-        titleLabel.setForeground(Color.WHITE);
-
-        JButton backButton = createStyledButton("← Back", SECONDARY_COLOR);
-        backButton.addActionListener(e -> cardLayout.show(mainPanel, "ADMIN_DASHBOARD"));
-
-        headerPanel.add(titleLabel, BorderLayout.WEST);
-        headerPanel.add(backButton, BorderLayout.EAST);
-
-        JPanel contentPanel = new JPanel(new BorderLayout());
-        contentPanel.setBackground(BACKGROUND_COLOR);
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        topPanel.setBackground(BACKGROUND_COLOR);
-
-        JButton addRoomButton = createStyledButton("+ Add Room", SECONDARY_COLOR);
-        addRoomButton.addActionListener(e -> {
-            showAddRoomDialog();
-            updateAllPanels();
-        });
-
-        topPanel.add(addRoomButton);
-        contentPanel.add(topPanel, BorderLayout.NORTH);
-
-        JPanel roomsPanel = new JPanel();
-        roomsPanel.setLayout(new BoxLayout(roomsPanel, BoxLayout.Y_AXIS));
-        roomsPanel.setBackground(BACKGROUND_COLOR);
-
-        JScrollPane scrollPane = new JScrollPane(roomsPanel);
-        scrollPane.setBackground(BACKGROUND_COLOR);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
-
-        contentPanel.add(scrollPane, BorderLayout.CENTER);
-
-        panel.add(headerPanel, BorderLayout.NORTH);
-        panel.add(contentPanel, BorderLayout.CENTER);
-
-        panel.putClientProperty("roomsContent", roomsPanel);
+        panel.putClientProperty("statsPanel", statsPanel);
 
         return panel;
     }
 
-    // =============== VIEW ALL BOOKINGS PANEL ===============
-    private JPanel createViewAllBookingsPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BACKGROUND_COLOR);
-
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(PRIMARY_COLOR);
-        headerPanel.setPreferredSize(new Dimension(1200, 70));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
-
-        JLabel titleLabel = new JLabel("All Bookings");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 26));
-        titleLabel.setForeground(Color.WHITE);
-
-        JButton backButton = createStyledButton("← Back", PRIMARY_COLOR);
-        backButton.addActionListener(e -> cardLayout.show(mainPanel, "ADMIN_DASHBOARD"));
-
-        headerPanel.add(titleLabel, BorderLayout.WEST);
-        headerPanel.add(backButton, BorderLayout.EAST);
-
-        JPanel contentPanel = new JPanel(new BorderLayout());
-        contentPanel.setBackground(BACKGROUND_COLOR);
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        searchPanel.setBackground(BACKGROUND_COLOR);
-
-        JLabel searchLabel = new JLabel("Search:");
-        searchLabel.setFont(new Font("Arial", Font.PLAIN, 13));
-
-        JTextField searchField = new JTextField();
-        searchField.setFont(new Font("Arial", Font.PLAIN, 13));
-        searchField.setPreferredSize(new Dimension(300, 35));
-        searchField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
-
-        JButton searchButton = createStyledButton("Search", PRIMARY_COLOR);
-
-        searchPanel.add(searchLabel);
-        searchPanel.add(searchField);
-        searchPanel.add(searchButton);
-
-        contentPanel.add(searchPanel, BorderLayout.NORTH);
-
-        JPanel bookingsPanel = new JPanel();
-        bookingsPanel.setLayout(new BoxLayout(bookingsPanel, BoxLayout.Y_AXIS));
-        bookingsPanel.setBackground(BACKGROUND_COLOR);
-
-        JScrollPane scrollPane = new JScrollPane(bookingsPanel);
-        scrollPane.setBackground(BACKGROUND_COLOR);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
-
-        searchButton.addActionListener(e -> {
-            String query = searchField.getText().trim();
-            bookingsPanel.removeAll();
-
-            ArrayList<Booking> results;
-            if (query.isEmpty()) {
-                results = hotelManager.getAllBookings();
-            } else {
-                results = hotelManager.searchBookings(query);
-            }
-
-            if (results.isEmpty()) {
-                JLabel noResultsLabel = new JLabel("No bookings found!");
-                noResultsLabel.setFont(new Font("Arial", Font.ITALIC, 16));
-                noResultsLabel.setForeground(new Color(100, 100, 100));
-                bookingsPanel.add(noResultsLabel);
-            } else {
-                for (Booking booking : results) {
-                    JPanel bookingCard = createAdminBookingCard(booking);
-                    bookingsPanel.add(bookingCard);
-                    bookingsPanel.add(Box.createVerticalStrut(10));
-                }
-            }
-            bookingsPanel.revalidate();
-            bookingsPanel.repaint();
-        });
-
-        contentPanel.add(scrollPane, BorderLayout.CENTER);
-
-        panel.add(headerPanel, BorderLayout.NORTH);
-        panel.add(contentPanel, BorderLayout.CENTER);
-
-        panel.putClientProperty("bookingsPanel", bookingsPanel);
-
-        return panel;
-    }
-
-    // =============== VIEW ROOMS PANEL ===============
     private JPanel createViewRoomsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BACKGROUND_COLOR);
+        panel.setBackground(ThemeColors.BG_LIGHT);
 
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(PRIMARY_COLOR);
-        headerPanel.setPreferredSize(new Dimension(1200, 70));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+        JPanel headerPanel = new GradientPanel(ThemeColors.PRIMARY, ThemeColors.PRIMARY_DARK);
+        headerPanel.setPreferredSize(new Dimension(1400, 90));
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 30, 15, 30));
 
-        JLabel titleLabel = new JLabel("Available Rooms");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 26));
+        JLabel titleLabel = new JLabel("🛏️ Available Rooms");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 32));
         titleLabel.setForeground(Color.WHITE);
 
-        JButton backButton = createStyledButton("← Back", PRIMARY_COLOR);
+        ModernButton backButton = new ModernButton("← Back", ThemeColors.PRIMARY);
         backButton.addActionListener(e -> cardLayout.show(mainPanel, "DASHBOARD"));
 
         headerPanel.add(titleLabel, BorderLayout.WEST);
@@ -988,11 +1069,11 @@ public class HotelReservationSystem extends JFrame {
 
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setBackground(BACKGROUND_COLOR);
+        contentPanel.setBackground(ThemeColors.BG_LIGHT);
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         JScrollPane scrollPane = new JScrollPane(contentPanel);
-        scrollPane.setBackground(BACKGROUND_COLOR);
+        scrollPane.setBackground(ThemeColors.BG_LIGHT);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
 
         panel.add(headerPanel, BorderLayout.NORTH);
@@ -1003,21 +1084,20 @@ public class HotelReservationSystem extends JFrame {
         return panel;
     }
 
-    // =============== BOOK ROOM PANEL ===============
     private JPanel createBookRoomPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BACKGROUND_COLOR);
+        panel.setBackground(ThemeColors.BG_LIGHT);
 
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(ACCENT_COLOR);
-        headerPanel.setPreferredSize(new Dimension(1200, 70));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+        JPanel headerPanel = new GradientPanel(ThemeColors.WARNING, new Color(245, 180, 0));
+        headerPanel.setPreferredSize(new Dimension(1400, 90));
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 30, 15, 30));
 
-        JLabel titleLabel = new JLabel("Book a Room");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 26));
+        JLabel titleLabel = new JLabel("📅 Book Your Room");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 32));
         titleLabel.setForeground(Color.WHITE);
 
-        JButton backButton = createStyledButton("← Back", ACCENT_COLOR);
+        ModernButton backButton = new ModernButton("← Back", ThemeColors.WARNING);
         backButton.addActionListener(e -> cardLayout.show(mainPanel, "DASHBOARD"));
 
         headerPanel.add(titleLabel, BorderLayout.WEST);
@@ -1025,31 +1105,23 @@ public class HotelReservationSystem extends JFrame {
 
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new GridBagLayout());
-        contentPanel.setBackground(BACKGROUND_COLOR);
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(30, 40, 30, 40));
+        contentPanel.setBackground(ThemeColors.BG_LIGHT);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(40, 40, 40, 40));
 
-        JPanel cardPanel = createCard(600, 500);
+        RoundedPanel cardPanel = new RoundedPanel(20);
         cardPanel.setLayout(new GridBagLayout());
+        cardPanel.setPreferredSize(new Dimension(650, 550));
+
         GridBagConstraints cardGbc = new GridBagConstraints();
         cardGbc.insets = new Insets(15, 30, 15, 30);
         cardGbc.fill = GridBagConstraints.HORIZONTAL;
         cardGbc.gridwidth = 2;
 
-        JComboBox<String> roomComboBox = new JComboBox<>();
-        roomComboBox.setFont(new Font("Arial", Font.PLAIN, 13));
-        roomComboBox.setPreferredSize(new Dimension(400, 40));
-        roomComboBox.setMaximumRowCount(10);
-
-        JSpinner checkInSpinner = new JSpinner(new SpinnerDateModel());
-        JSpinner.DateEditor checkInEditor = new JSpinner.DateEditor(checkInSpinner, "yyyy-MM-dd");
-        checkInSpinner.setEditor(checkInEditor);
-
-        JSpinner checkOutSpinner = new JSpinner(new SpinnerDateModel());
-        JSpinner.DateEditor checkOutEditor = new JSpinner.DateEditor(checkOutSpinner, "yyyy-MM-dd");
-        checkOutSpinner.setEditor(checkOutEditor);
-
+        JComboBox<String> roomComboBox = createModernComboBox();
+        JSpinner checkInSpinner = createModernDateSpinner();
+        JSpinner checkOutSpinner = createModernDateSpinner();
         JSpinner guestsSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
-        guestsSpinner.setFont(new Font("Arial", Font.PLAIN, 13));
+        guestsSpinner.setFont(new Font("Segoe UI", Font.PLAIN, 13));
 
         cardGbc.gridy = 0;
         cardPanel.add(createLabeledComponent("Select Room:", roomComboBox), cardGbc);
@@ -1062,12 +1134,12 @@ public class HotelReservationSystem extends JFrame {
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 15, 0));
-        buttonPanel.setBackground(CARD_COLOR);
+        buttonPanel.setBackground(ThemeColors.CARD_BG);
 
-        JButton bookButton = createStyledButton("Book Now", SECONDARY_COLOR);
+        ModernButton bookButton = new ModernButton("✅ Book Now", ThemeColors.SUCCESS);
         bookButton.addActionListener(e -> {
             if (roomComboBox.getSelectedIndex() == -1) {
-                JOptionPane.showMessageDialog(this, "Please select a room!", "Error", JOptionPane.ERROR_MESSAGE);
+                showCustomMessage("Please select a room!", "Error");
                 return;
             }
 
@@ -1076,6 +1148,12 @@ public class HotelReservationSystem extends JFrame {
                     convertToLocalDate((java.util.Date) checkOutSpinner.getValue()),
                     (Integer) guestsSpinner.getValue()
             );
+            
+            if (availableRooms.isEmpty()) {
+                showCustomMessage("No rooms available!", "Error");
+                return;
+            }
+            
             Room selectedRoom = availableRooms.get(roomComboBox.getSelectedIndex());
 
             java.util.Date checkInDate = (java.util.Date) checkInSpinner.getValue();
@@ -1085,7 +1163,7 @@ public class HotelReservationSystem extends JFrame {
             LocalDate checkOut = convertToLocalDate(checkOutDate);
 
             if (checkOut.isBefore(checkIn) || checkOut.isEqual(checkIn)) {
-                JOptionPane.showMessageDialog(this, "Check-out date must be after check-in date!", "Error", JOptionPane.ERROR_MESSAGE);
+                showCustomMessage("Check-out date must be after check-in!", "Error");
                 return;
             }
 
@@ -1094,11 +1172,11 @@ public class HotelReservationSystem extends JFrame {
             Booking booking = hotelManager.bookRoom(currentUser.getUsername(), selectedRoom.getId(), checkIn, checkOut, numberOfGuests);
 
             if (booking != null) {
-                JOptionPane.showMessageDialog(this, "Room booked successfully!\n\n" + booking.toString(), "Success", JOptionPane.INFORMATION_MESSAGE);
+                showCustomMessage("✅ Room booked successfully!", "Success");
                 roomComboBox.removeAllItems();
                 cardLayout.show(mainPanel, "DASHBOARD");
             } else {
-                JOptionPane.showMessageDialog(this, "Booking failed! Room may not be available for selected dates or capacity exceeded.", "Error", JOptionPane.ERROR_MESSAGE);
+                showCustomMessage("Booking failed!", "Error");
             }
         });
 
@@ -1118,21 +1196,20 @@ public class HotelReservationSystem extends JFrame {
         return panel;
     }
 
-    // =============== VIEW BOOKINGS PANEL ===============
-    private JPanel createViewBookingsPanel() {
+    private JPanel createMyBookingsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BACKGROUND_COLOR);
+        panel.setBackground(ThemeColors.BG_LIGHT);
 
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(PRIMARY_COLOR);
-        headerPanel.setPreferredSize(new Dimension(1200, 70));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+        JPanel headerPanel = new GradientPanel(ThemeColors.PRIMARY, ThemeColors.PRIMARY_DARK);
+        headerPanel.setPreferredSize(new Dimension(1400, 90));
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 30, 15, 30));
 
-        JLabel titleLabel = new JLabel("My Bookings");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 26));
+        JLabel titleLabel = new JLabel("📝 My Bookings");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 32));
         titleLabel.setForeground(Color.WHITE);
 
-        JButton backButton = createStyledButton("← Back", PRIMARY_COLOR);
+        ModernButton backButton = new ModernButton("← Back", ThemeColors.PRIMARY);
         backButton.addActionListener(e -> cardLayout.show(mainPanel, "DASHBOARD"));
 
         headerPanel.add(titleLabel, BorderLayout.WEST);
@@ -1140,11 +1217,11 @@ public class HotelReservationSystem extends JFrame {
 
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setBackground(BACKGROUND_COLOR);
+        contentPanel.setBackground(ThemeColors.BG_LIGHT);
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         JScrollPane scrollPane = new JScrollPane(contentPanel);
-        scrollPane.setBackground(BACKGROUND_COLOR);
+        scrollPane.setBackground(ThemeColors.BG_LIGHT);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
 
         panel.add(headerPanel, BorderLayout.NORTH);
@@ -1155,245 +1232,455 @@ public class HotelReservationSystem extends JFrame {
         return panel;
     }
 
-    // =============== BOOKING HISTORY PANEL ===============
-    private JPanel createBookingHistoryPanel() {
+    private JPanel createSpecialOffersPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BACKGROUND_COLOR);
+        panel.setBackground(ThemeColors.BG_LIGHT);
 
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(new Color(103, 58, 183));
-        headerPanel.setPreferredSize(new Dimension(1200, 70));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+        JPanel headerPanel = new GradientPanel(ThemeColors.WARNING, new Color(245, 180, 0));
+        headerPanel.setPreferredSize(new Dimension(1400, 90));
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 30, 15, 30));
 
-        JLabel titleLabel = new JLabel("Booking History");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 26));
+        JLabel titleLabel = new JLabel("🎁 Special Offers & Deals");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 32));
         titleLabel.setForeground(Color.WHITE);
 
-        JButton backButton = createStyledButton("← Back", new Color(103, 58, 183));
+        ModernButton backButton = new ModernButton("← Back", ThemeColors.WARNING);
         backButton.addActionListener(e -> cardLayout.show(mainPanel, "DASHBOARD"));
 
         headerPanel.add(titleLabel, BorderLayout.WEST);
         headerPanel.add(backButton, BorderLayout.EAST);
 
         JPanel contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setBackground(BACKGROUND_COLOR);
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        contentPanel.setLayout(new GridLayout(2, 2, 25, 25));
+        contentPanel.setBackground(ThemeColors.BG_LIGHT);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(40, 40, 40, 40));
 
-        JScrollPane scrollPane = new JScrollPane(contentPanel);
-        scrollPane.setBackground(BACKGROUND_COLOR);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        contentPanel.add(createOfferCard("🎉 Summer Discount", "Get 30% off on all rooms", "Valid till 31st Aug", ThemeColors.DANGER));
+        contentPanel.add(createOfferCard("👨‍👩‍👧‍👦 Family Package", "Book 3+ rooms, get 20% off", "Valid till 30th Sept", ThemeColors.INFO));
+        contentPanel.add(createOfferCard("💑 Couple's Retreat", "Get complimentary breakfast", "Valid till 15th Dec", ThemeColors.PRIMARY));
+        contentPanel.add(createOfferCard("🎓 Student Special", "Valid ID required - 25% off", "Valid till 31st Oct", ThemeColors.SECONDARY));
 
         panel.add(headerPanel, BorderLayout.NORTH);
-        panel.add(scrollPane, BorderLayout.CENTER);
+        panel.add(contentPanel, BorderLayout.CENTER);
 
-        panel.putClientProperty("historyContent", contentPanel);
+        return panel;
+    }
+
+    private JPanel createProfilePanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(ThemeColors.BG_LIGHT);
+
+        JPanel headerPanel = new GradientPanel(ThemeColors.INFO, new Color(0, 150, 220));
+        headerPanel.setPreferredSize(new Dimension(1400, 90));
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 30, 15, 30));
+
+        JLabel titleLabel = new JLabel("👤 My Profile");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 32));
+        titleLabel.setForeground(Color.WHITE);
+
+        ModernButton backButton = new ModernButton("← Back", ThemeColors.INFO);
+        backButton.addActionListener(e -> cardLayout.show(mainPanel, "DASHBOARD"));
+
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        headerPanel.add(backButton, BorderLayout.EAST);
+
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new GridBagLayout());
+        contentPanel.setBackground(ThemeColors.BG_LIGHT);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(40, 40, 40, 40));
+
+        RoundedPanel cardPanel = new RoundedPanel(20);
+        cardPanel.setLayout(new GridBagLayout());
+        cardPanel.setPreferredSize(new Dimension(500, 450));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(15, 30, 15, 30);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridwidth = 2;
+
+        JLabel profileTitle = new JLabel("👤 Profile Information");
+        profileTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        profileTitle.setForeground(ThemeColors.PRIMARY);
+        gbc.gridy = 0;
+        cardPanel.add(profileTitle, gbc);
+
+        JLabel usernameValue = new JLabel();
+        usernameValue.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        gbc.gridy = 1;
+        cardPanel.add(createLabeledComponent("Username:", usernameValue), gbc);
+
+        JLabel emailValue = new JLabel();
+        emailValue.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        gbc.gridy = 2;
+        cardPanel.add(createLabeledComponent("Email:", emailValue), gbc);
+
+        JLabel phoneValue = new JLabel();
+        phoneValue.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        gbc.gridy = 3;
+        cardPanel.add(createLabeledComponent("Phone:", phoneValue), gbc);
+
+        JLabel memberSince = new JLabel();
+        memberSince.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        gbc.gridy = 4;
+        cardPanel.add(createLabeledComponent("Member Since:", memberSince), gbc);
+
+        JPanel editPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        editPanel.setBackground(ThemeColors.CARD_BG);
+
+        ModernButton editButton = new ModernButton("✏️ Edit Profile", ThemeColors.INFO);
+        editButton.addActionListener(e -> showEditProfileDialog());
+
+        ModernButton changePassButton = new ModernButton("🔐 Change Password", ThemeColors.WARNING);
+        changePassButton.addActionListener(e -> showChangePasswordDialog());
+
+        editPanel.add(editButton);
+        editPanel.add(changePassButton);
+
+        gbc.gridy = 5;
+        gbc.insets = new Insets(30, 30, 20, 30);
+        cardPanel.add(editPanel, gbc);
+
+        contentPanel.add(cardPanel);
+
+        panel.add(headerPanel, BorderLayout.NORTH);
+        panel.add(contentPanel, BorderLayout.CENTER);
+
+        panel.putClientProperty("usernameValue", usernameValue);
+        panel.putClientProperty("emailValue", emailValue);
+        panel.putClientProperty("phoneValue", phoneValue);
+        panel.putClientProperty("memberSince", memberSince);
+
+        return panel;
+    }
+
+    private JPanel createManageRoomsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(ThemeColors.BG_LIGHT);
+
+        JPanel headerPanel = new GradientPanel(ThemeColors.SECONDARY, new Color(65, 160, 75));
+        headerPanel.setPreferredSize(new Dimension(1400, 90));
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 30, 15, 30));
+
+        JLabel titleLabel = new JLabel("🔧 Manage Rooms");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 32));
+        titleLabel.setForeground(Color.WHITE);
+
+        ModernButton backButton = new ModernButton("← Back", ThemeColors.SECONDARY);
+        backButton.addActionListener(e -> cardLayout.show(mainPanel, "ADMIN_DASHBOARD"));
+
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        headerPanel.add(backButton, BorderLayout.EAST);
+
+        JPanel contentPanel = new JPanel(new BorderLayout());
+        contentPanel.setBackground(ThemeColors.BG_LIGHT);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        topPanel.setBackground(ThemeColors.BG_LIGHT);
+
+        ModernButton addRoomButton = new ModernButton("➕ Add Room", ThemeColors.SECONDARY);
+        addRoomButton.addActionListener(e -> {
+            showAddRoomDialog();
+            updateAllPanels();
+        });
+
+        topPanel.add(addRoomButton);
+        contentPanel.add(topPanel, BorderLayout.NORTH);
+
+        JPanel roomsPanel = new JPanel();
+        roomsPanel.setLayout(new BoxLayout(roomsPanel, BoxLayout.Y_AXIS));
+        roomsPanel.setBackground(ThemeColors.BG_LIGHT);
+
+        JScrollPane scrollPane = new JScrollPane(roomsPanel);
+        scrollPane.setBackground(ThemeColors.BG_LIGHT);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+
+        contentPanel.add(scrollPane, BorderLayout.CENTER);
+
+        panel.add(headerPanel, BorderLayout.NORTH);
+        panel.add(contentPanel, BorderLayout.CENTER);
+
+        panel.putClientProperty("roomsContent", roomsPanel);
+
+        return panel;
+    }
+
+    private JPanel createViewAllBookingsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(ThemeColors.BG_LIGHT);
+
+        JPanel headerPanel = new GradientPanel(ThemeColors.PRIMARY, ThemeColors.PRIMARY_DARK);
+        headerPanel.setPreferredSize(new Dimension(1400, 90));
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 30, 15, 30));
+
+        JLabel titleLabel = new JLabel("📋 All Bookings");
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 32));
+        titleLabel.setForeground(Color.WHITE);
+
+        ModernButton backButton = new ModernButton("← Back", ThemeColors.PRIMARY);
+        backButton.addActionListener(e -> cardLayout.show(mainPanel, "ADMIN_DASHBOARD"));
+
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        headerPanel.add(backButton, BorderLayout.EAST);
+
+        JPanel contentPanel = new JPanel(new BorderLayout());
+        contentPanel.setBackground(ThemeColors.BG_LIGHT);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        searchPanel.setBackground(ThemeColors.BG_LIGHT);
+
+        JLabel searchLabel = new JLabel("🔍 Search:");
+        searchLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+
+        JTextField searchField = createModernTextField("Search by username, booking ID, room...");
+        searchField.setPreferredSize(new Dimension(350, 40));
+
+        ModernButton searchButton = new ModernButton("Search", ThemeColors.PRIMARY);
+
+        searchPanel.add(searchLabel);
+        searchPanel.add(searchField);
+        searchPanel.add(searchButton);
+
+        contentPanel.add(searchPanel, BorderLayout.NORTH);
+
+        JPanel bookingsPanel = new JPanel();
+        bookingsPanel.setLayout(new BoxLayout(bookingsPanel, BoxLayout.Y_AXIS));
+        bookingsPanel.setBackground(ThemeColors.BG_LIGHT);
+
+        JScrollPane scrollPane = new JScrollPane(bookingsPanel);
+        scrollPane.setBackground(ThemeColors.BG_LIGHT);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+
+        searchButton.addActionListener(e -> {
+            String query = searchField.getText().trim();
+            bookingsPanel.removeAll();
+
+            ArrayList<Booking> results;
+            if (query.isEmpty()) {
+                results = hotelManager.getAllBookings();
+            } else {
+                results = hotelManager.searchBookings(query);
+            }
+
+            if (results.isEmpty()) {
+                JLabel noResultsLabel = new JLabel("❌ No bookings found!");
+                noResultsLabel.setFont(new Font("Segoe UI", Font.ITALIC, 16));
+                noResultsLabel.setForeground(ThemeColors.DARK_GRAY);
+                bookingsPanel.add(noResultsLabel);
+            } else {
+                for (Booking booking : results) {
+                    JPanel bookingCard = createAdminBookingCard(booking);
+                    bookingsPanel.add(bookingCard);
+                    bookingsPanel.add(Box.createVerticalStrut(12));
+                }
+            }
+            bookingsPanel.revalidate();
+            bookingsPanel.repaint();
+        });
+
+        contentPanel.add(scrollPane, BorderLayout.CENTER);
+
+        panel.add(headerPanel, BorderLayout.NORTH);
+        panel.add(contentPanel, BorderLayout.CENTER);
+
+        panel.putClientProperty("bookingsPanel", bookingsPanel);
 
         return panel;
     }
 
     // =============== Helper Methods ===============
-    private void showAddRoomDialog() {
-        JDialog dialog = new JDialog(this, "Add New Room", true);
-        dialog.setSize(400, 350);
-        dialog.setLocationRelativeTo(this);
-        dialog.setResizable(false);
-
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(CARD_COLOR);
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        JTextField idField = new JTextField();
-        idField.setFont(new Font("Arial", Font.PLAIN, 12));
-        idField.setPreferredSize(new Dimension(250, 35));
-
-        JTextField typeField = new JTextField();
-        typeField.setFont(new Font("Arial", Font.PLAIN, 12));
-        typeField.setPreferredSize(new Dimension(250, 35));
-
-        JTextField priceField = new JTextField();
-        priceField.setFont(new Font("Arial", Font.PLAIN, 12));
-
-        JSpinner capacitySpinner = new JSpinner(new SpinnerNumberModel(2, 1, 10, 1));
-
-        JTextArea descriptionArea = new JTextArea(3, 20);
-        descriptionArea.setFont(new Font("Arial", Font.PLAIN, 12));
-
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        panel.add(new JLabel("Room ID:"), gbc);
-        gbc.gridx = 1;
-        panel.add(idField, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        panel.add(new JLabel("Room Type:"), gbc);
-        gbc.gridx = 1;
-        panel.add(typeField, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        panel.add(new JLabel("Price:"), gbc);
-        gbc.gridx = 1;
-        panel.add(priceField, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        panel.add(new JLabel("Capacity:"), gbc);
-        gbc.gridx = 1;
-        panel.add(capacitySpinner, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 4;
-        panel.add(new JLabel("Description:"), gbc);
-        gbc.gridx = 1;
-        panel.add(new JScrollPane(descriptionArea), gbc);
-
-        JButton addButton = createStyledButton("Add Room", SECONDARY_COLOR);
-        addButton.addActionListener(e -> {
-            try {
-                int id = Integer.parseInt(idField.getText().trim());
-                String type = typeField.getText().trim();
-                double price = Double.parseDouble(priceField.getText().trim());
-                int capacity = (Integer) capacitySpinner.getValue();
-                String description = descriptionArea.getText().trim();
-
-                if (type.isEmpty() || description.isEmpty()) {
-                    JOptionPane.showMessageDialog(dialog, "Please fill all fields!", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
+    private JTextField createModernTextField(String placeholder) {
+        JTextField field = new JTextField();
+        field.setText(placeholder);
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        field.setPreferredSize(new Dimension(300, 40));
+        field.setBorder(new RoundedBorder(10, ThemeColors.GRAY, 1));
+        field.setForeground(ThemeColors.DARK_GRAY);
+        
+        field.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (field.getText().equals(placeholder)) {
+                    field.setText("");
+                    field.setForeground(ThemeColors.TEXT_DARK);
                 }
+            }
 
-                Room newRoom = new Room(id, type, price, description, capacity);
-                if (hotelManager.addRoom(newRoom)) {
-                    JOptionPane.showMessageDialog(dialog, "Room added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                    updateAllPanels();
-                    dialog.dispose();
-                } else {
-                    JOptionPane.showMessageDialog(dialog, "Room ID already exists!", "Error", JOptionPane.ERROR_MESSAGE);
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (field.getText().isEmpty()) {
+                    field.setText(placeholder);
+                    field.setForeground(ThemeColors.DARK_GRAY);
                 }
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(dialog, "Please enter valid values!", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
-
-        JButton cancelButton = createStyledButton("Cancel", DANGER_COLOR);
-        cancelButton.addActionListener(e -> dialog.dispose());
-
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        buttonPanel.setBackground(CARD_COLOR);
-        buttonPanel.add(addButton);
-        buttonPanel.add(cancelButton);
-
-        gbc.gridx = 0;
-        gbc.gridy = 5;
-        gbc.gridwidth = 2;
-        gbc.insets = new Insets(20, 10, 10, 10);
-        panel.add(buttonPanel, gbc);
-
-        dialog.add(panel);
-        dialog.setVisible(true);
+        
+        return field;
     }
 
-    private JPanel createCard(int width, int height) {
-        JPanel panel = new JPanel();
-        panel.setBackground(CARD_COLOR);
-        panel.setPreferredSize(new Dimension(width, height));
-        panel.setBorder(BorderFactory.createLineBorder(new Color(220, 220, 220), 1));
-        panel.setMaximumSize(new Dimension(width, height));
-        return panel;
+    private JPasswordField createModernPasswordField(String placeholder) {
+        JPasswordField field = new JPasswordField();
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        field.setPreferredSize(new Dimension(300, 40));
+        field.setBorder(new RoundedBorder(10, ThemeColors.GRAY, 1));
+        return field;
     }
 
-    private JPanel createLabeledField(String labelText, JComponent field) {
-        JPanel panel = new JPanel(new BorderLayout(10, 0));
-        panel.setBackground(CARD_COLOR);
-        JLabel label = new JLabel(labelText);
-        label.setFont(new Font("Arial", Font.PLAIN, 13));
-        label.setPreferredSize(new Dimension(120, 35));
-        panel.add(label, BorderLayout.WEST);
-        panel.add(field, BorderLayout.CENTER);
-        return panel;
+    private JComboBox<String> createModernComboBox() {
+        JComboBox<String> combo = new JComboBox<>();
+        combo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        combo.setPreferredSize(new Dimension(400, 40));
+        combo.setMaximumRowCount(10);
+        return combo;
+    }
+
+    private JSpinner createModernDateSpinner() {
+        JSpinner spinner = new JSpinner(new SpinnerDateModel());
+        JSpinner.DateEditor editor = new JSpinner.DateEditor(spinner, "yyyy-MM-dd");
+        spinner.setEditor(editor);
+        spinner.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        return spinner;
     }
 
     private JPanel createLabeledComponent(String labelText, JComponent component) {
         JPanel panel = new JPanel(new BorderLayout(10, 0));
-        panel.setBackground(CARD_COLOR);
+        panel.setBackground(ThemeColors.CARD_BG);
         JLabel label = new JLabel(labelText);
-        label.setFont(new Font("Arial", Font.PLAIN, 13));
-        label.setPreferredSize(new Dimension(150, 40));
+        label.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        label.setForeground(ThemeColors.TEXT_DARK);
+        label.setPreferredSize(new Dimension(160, 40));
         panel.add(label, BorderLayout.WEST);
         panel.add(component, BorderLayout.CENTER);
         return panel;
     }
 
-    private JButton createStyledButton(String text, Color color) {
-        JButton button = new JButton(text);
-        button.setFont(new Font("Arial", Font.BOLD, 14));
-        button.setBackground(color);
-        button.setForeground(Color.WHITE);
-        button.setPreferredSize(new Dimension(140, 40));
-        button.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setFocusPainted(false);
-        return button;
-    }
-
-    private JPanel createDashboardCard(String title, Color color, ActionListener action) {
-        JPanel card = createCard(400, 180);
+    private JPanel createDashboardCard(String title, String description, Color color, ActionListener action) {
+        RoundedPanel card = new RoundedPanel(20);
         card.setLayout(new BorderLayout());
-        card.setBorder(BorderFactory.createLineBorder(color, 2));
+        card.setBorder(new RoundedBorder(20, color, 3));
+        card.setPreferredSize(new Dimension(400, 200));
+        card.setMaximumSize(new Dimension(400, 200));
 
-        JPanel titlePanel = new JPanel();
-        titlePanel.setBackground(color);
-        titlePanel.setPreferredSize(new Dimension(400, 60));
+        JPanel headerPanel = new JPanel();
+        headerPanel.setBackground(color);
+        headerPanel.setPreferredSize(new Dimension(400, 80));
+        headerPanel.setLayout(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
         titleLabel.setForeground(Color.WHITE);
-        titlePanel.add(titleLabel);
 
-        JButton actionButton = new JButton("Access");
-        actionButton.setFont(new Font("Arial", Font.BOLD, 14));
-        actionButton.setBackground(color);
-        actionButton.setForeground(Color.WHITE);
-        actionButton.setPreferredSize(new Dimension(120, 40));
-        actionButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        actionButton.setFocusPainted(false);
-        actionButton.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
+        JLabel descLabel = new JLabel(description);
+        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        descLabel.setForeground(Color.WHITE);
+
+        JPanel textPanel = new JPanel();
+        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+        textPanel.setBackground(color);
+        textPanel.add(titleLabel);
+        textPanel.add(descLabel);
+
+        headerPanel.add(textPanel, BorderLayout.WEST);
+
+        ModernButton actionButton = new ModernButton("➜ Access", color);
         actionButton.addActionListener(action);
 
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setBackground(CARD_COLOR);
+        buttonPanel.setBackground(ThemeColors.CARD_BG);
         buttonPanel.setLayout(new BorderLayout());
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(30, 20, 30, 20));
         buttonPanel.add(actionButton, BorderLayout.CENTER);
 
-        card.add(titlePanel, BorderLayout.NORTH);
+        card.add(headerPanel, BorderLayout.NORTH);
         card.add(buttonPanel, BorderLayout.CENTER);
 
         return card;
     }
 
+    private JPanel createOfferCard(String title, String description, String validity, Color color) {
+        RoundedPanel card = new RoundedPanel(15);
+        card.setLayout(new GridBagLayout());
+        card.setBorder(new RoundedBorder(15, color, 2));
+        card.setPreferredSize(new Dimension(350, 180));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 15, 10, 15);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        titleLabel.setForeground(color);
+        gbc.gridy = 0;
+        card.add(titleLabel, gbc);
+
+        JLabel descLabel = new JLabel(description);
+        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        descLabel.setForeground(ThemeColors.TEXT_DARK);
+        gbc.gridy = 1;
+        gbc.insets = new Insets(5, 15, 5, 15);
+        card.add(descLabel, gbc);
+
+        JLabel validLabel = new JLabel(validity);
+        validLabel.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        validLabel.setForeground(ThemeColors.DARK_GRAY);
+        gbc.gridy = 2;
+        card.add(validLabel, gbc);
+
+        return card;
+    }
+
+    private JPanel createStatCard(String title, String value, Color color) {
+        RoundedPanel card = new RoundedPanel(15);
+        card.setLayout(new GridBagLayout());
+        card.setBorder(new RoundedBorder(15, color, 2));
+        card.setPreferredSize(new Dimension(180, 100));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        titleLabel.setForeground(ThemeColors.DARK_GRAY);
+        gbc.gridy = 0;
+        card.add(titleLabel, gbc);
+
+        JLabel valueLabel = new JLabel(value);
+        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        valueLabel.setForeground(color);
+        gbc.gridy = 1;
+        gbc.insets = new Insets(5, 0, 0, 0);
+        card.add(valueLabel, gbc);
+
+        card.putClientProperty("valueLabel", valueLabel);
+
+        return card;
+    }
+
     private JPanel createRoomCard(Room room) {
-        JPanel panel = createCard(900, 100);
+        RoundedPanel panel = new RoundedPanel(15);
         panel.setLayout(new BorderLayout());
-        panel.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
+        panel.setBorder(new RoundedBorder(15, ThemeColors.GRAY, 1));
+        panel.setPreferredSize(new Dimension(1000, 110));
+        panel.setMaximumSize(new Dimension(1000, 110));
 
         JPanel infoPanel = new JPanel();
-        infoPanel.setBackground(CARD_COLOR);
+        infoPanel.setBackground(ThemeColors.CARD_BG);
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
-        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 10));
+        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 10));
 
-        JLabel roomLabel = new JLabel(room.toString());
-        roomLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+        JLabel roomLabel = new JLabel("🛏️ " + room.toString());
+        roomLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
 
         infoPanel.add(roomLabel);
 
-        JLabel statusLabel = new JLabel(room.isAvailable() ? "✓ Available" : "✗ Booked");
-        statusLabel.setFont(new Font("Arial", Font.BOLD, 13));
-        statusLabel.setForeground(room.isAvailable() ? SECONDARY_COLOR : DANGER_COLOR);
+        JLabel statusLabel = new JLabel(room.isAvailable() ? "✅ Available" : "🚫 Booked");
+        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        statusLabel.setForeground(room.isAvailable() ? ThemeColors.SUCCESS : ThemeColors.DANGER);
         statusLabel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
 
         infoPanel.add(statusLabel);
@@ -1404,42 +1691,44 @@ public class HotelReservationSystem extends JFrame {
     }
 
     private JPanel createAdminRoomCard(Room room) {
-        JPanel panel = createCard(900, 120);
+        RoundedPanel panel = new RoundedPanel(15);
         panel.setLayout(new BorderLayout());
-        panel.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
+        panel.setBorder(new RoundedBorder(15, ThemeColors.GRAY, 1));
+        panel.setPreferredSize(new Dimension(1000, 120));
+        panel.setMaximumSize(new Dimension(1000, 120));
 
         JPanel infoPanel = new JPanel();
-        infoPanel.setBackground(CARD_COLOR);
+        infoPanel.setBackground(ThemeColors.CARD_BG);
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
-        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 10));
+        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 10));
 
-        JLabel roomLabel = new JLabel(room.toString());
-        roomLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        JLabel roomLabel = new JLabel("🛏️ " + room.toString());
+        roomLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
 
         infoPanel.add(roomLabel);
 
         panel.add(infoPanel, BorderLayout.CENTER);
 
-        JButton removeButton = createStyledButton("Remove", DANGER_COLOR);
-        removeButton.setPreferredSize(new Dimension(110, 35));
+        ModernButton removeButton = new ModernButton("❌ Remove", ThemeColors.DANGER);
+        removeButton.setPreferredSize(new Dimension(120, 35));
         removeButton.addActionListener(e -> {
             int option = JOptionPane.showConfirmDialog(this,
-                    "Are you sure you want to remove room #" + room.getId() + "?",
-                    "Confirm Removal",
+                    "Remove room #" + room.getId() + "?",
+                    "Confirm",
                     JOptionPane.YES_NO_OPTION);
 
             if (option == JOptionPane.YES_OPTION) {
                 if (hotelManager.removeRoom(room.getId())) {
-                    JOptionPane.showMessageDialog(this, "Room removed successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    showCustomMessage("✅ Room removed!", "Success");
                     updateAllPanels();
                 } else {
-                    JOptionPane.showMessageDialog(this, "Cannot remove room! Active bookings exist.", "Error", JOptionPane.ERROR_MESSAGE);
+                    showCustomMessage("❌ Cannot remove! Active bookings exist.", "Error");
                 }
             }
         });
 
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setBackground(CARD_COLOR);
+        buttonPanel.setBackground(ThemeColors.CARD_BG);
         buttonPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 10, 10));
         buttonPanel.add(removeButton);
 
@@ -1449,45 +1738,47 @@ public class HotelReservationSystem extends JFrame {
     }
 
     private JPanel createBookingCard(Booking booking) {
-        JPanel panel = createCard(900, 120);
+        RoundedPanel panel = new RoundedPanel(15);
         panel.setLayout(new BorderLayout());
-        panel.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
+        panel.setBorder(new RoundedBorder(15, ThemeColors.GRAY, 1));
+        panel.setPreferredSize(new Dimension(1000, 130));
+        panel.setMaximumSize(new Dimension(1000, 130));
 
         JPanel infoPanel = new JPanel();
-        infoPanel.setBackground(CARD_COLOR);
+        infoPanel.setBackground(ThemeColors.CARD_BG);
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
-        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 10));
+        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 10));
 
-        JLabel bookingLabel = new JLabel(booking.toString());
-        bookingLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        JLabel bookingLabel = new JLabel("📋 " + booking.toString());
+        bookingLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
 
         JLabel statusLabel = new JLabel("Status: " + booking.getStatus());
-        statusLabel.setFont(new Font("Arial", Font.BOLD, 12));
-        statusLabel.setForeground(booking.getStatus().equals("CONFIRMED") ? SECONDARY_COLOR : DANGER_COLOR);
+        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        statusLabel.setForeground(booking.getStatus().equals("CONFIRMED") ? ThemeColors.SUCCESS : ThemeColors.DANGER);
 
         infoPanel.add(bookingLabel);
         infoPanel.add(statusLabel);
 
-        JButton cancelButton = createStyledButton("Cancel", DANGER_COLOR);
+        ModernButton cancelButton = new ModernButton("❌ Cancel", ThemeColors.DANGER);
         cancelButton.setPreferredSize(new Dimension(120, 35));
         cancelButton.addActionListener(e -> {
             int option = JOptionPane.showConfirmDialog(this,
-                    "Are you sure you want to cancel booking #" + booking.getBookingId() + "?",
-                    "Confirm Cancellation",
+                    "Cancel booking #" + booking.getBookingId() + "?",
+                    "Confirm",
                     JOptionPane.YES_NO_OPTION);
 
             if (option == JOptionPane.YES_OPTION) {
                 if (hotelManager.cancelBooking(booking.getBookingId(), currentUser.getUsername())) {
-                    JOptionPane.showMessageDialog(this, "Booking cancelled successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    showCustomMessage("✅ Booking cancelled!", "Success");
                     updateAllPanels();
                 } else {
-                    JOptionPane.showMessageDialog(this, "Failed to cancel booking!", "Error", JOptionPane.ERROR_MESSAGE);
+                    showCustomMessage("❌ Failed to cancel!", "Error");
                 }
             }
         });
 
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setBackground(CARD_COLOR);
+        buttonPanel.setBackground(ThemeColors.CARD_BG);
         buttonPanel.setLayout(new FlowLayout(FlowLayout.RIGHT, 10, 10));
         buttonPanel.add(cancelButton);
 
@@ -1498,21 +1789,23 @@ public class HotelReservationSystem extends JFrame {
     }
 
     private JPanel createAdminBookingCard(Booking booking) {
-        JPanel panel = createCard(900, 120);
+        RoundedPanel panel = new RoundedPanel(15);
         panel.setLayout(new BorderLayout());
-        panel.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
+        panel.setBorder(new RoundedBorder(15, ThemeColors.GRAY, 1));
+        panel.setPreferredSize(new Dimension(1000, 120));
+        panel.setMaximumSize(new Dimension(1000, 120));
 
         JPanel infoPanel = new JPanel();
-        infoPanel.setBackground(CARD_COLOR);
+        infoPanel.setBackground(ThemeColors.CARD_BG);
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
-        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 10));
+        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 10));
 
-        JLabel bookingLabel = new JLabel(booking.toString());
-        bookingLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        JLabel bookingLabel = new JLabel("📋 " + booking.toString());
+        bookingLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
 
         JLabel statusLabel = new JLabel("Status: " + booking.getStatus());
-        statusLabel.setFont(new Font("Arial", Font.BOLD, 12));
-        statusLabel.setForeground(booking.getStatus().equals("CONFIRMED") ? SECONDARY_COLOR : DANGER_COLOR);
+        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        statusLabel.setForeground(booking.getStatus().equals("CONFIRMED") ? ThemeColors.SUCCESS : ThemeColors.DANGER);
 
         infoPanel.add(bookingLabel);
         infoPanel.add(statusLabel);
@@ -1522,29 +1815,239 @@ public class HotelReservationSystem extends JFrame {
         return panel;
     }
 
-    private JPanel createBookingHistoryCard(Booking booking) {
-        JPanel panel = createCard(900, 110);
-        panel.setLayout(new BorderLayout());
-        panel.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
+    private void showAddRoomDialog() {
+        JDialog dialog = new JDialog(this, "Add New Room", true);
+        dialog.setSize(450, 420);
+        dialog.setLocationRelativeTo(this);
+        dialog.setResizable(false);
 
-        JPanel infoPanel = new JPanel();
-        infoPanel.setBackground(CARD_COLOR);
-        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
-        infoPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 10));
+        RoundedPanel panel = new RoundedPanel(15);
+        panel.setLayout(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
 
-        JLabel bookingLabel = new JLabel(booking.toString());
-        bookingLabel.setFont(new Font("Arial", Font.PLAIN, 12));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(12, 12, 12, 12);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        JLabel statusLabel = new JLabel("Status: " + booking.getStatus());
-        statusLabel.setFont(new Font("Arial", Font.BOLD, 12));
-        statusLabel.setForeground(booking.getStatus().equals("CONFIRMED") ? SECONDARY_COLOR : DANGER_COLOR);
+        JTextField idField = createModernTextField("Room ID");
+        JTextField typeField = createModernTextField("Room Type");
+        JTextField priceField = createModernTextField("Price");
+        JSpinner capacitySpinner = new JSpinner(new SpinnerNumberModel(2, 1, 10, 1));
+        JTextArea descriptionArea = new JTextArea(3, 20);
+        descriptionArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        descriptionArea.setBorder(new RoundedBorder(10, ThemeColors.GRAY, 1));
 
-        infoPanel.add(bookingLabel);
-        infoPanel.add(statusLabel);
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(createLabeledComponent("Room ID:", idField), gbc);
 
-        panel.add(infoPanel, BorderLayout.CENTER);
+        gbc.gridy = 1;
+        panel.add(createLabeledComponent("Room Type:", typeField), gbc);
 
-        return panel;
+        gbc.gridy = 2;
+        panel.add(createLabeledComponent("Price:", priceField), gbc);
+
+        gbc.gridy = 3;
+        panel.add(createLabeledComponent("Capacity:", capacitySpinner), gbc);
+
+        gbc.gridy = 4;
+        JLabel descLabel = new JLabel("Description:");
+        descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        descLabel.setForeground(ThemeColors.TEXT_DARK);
+        panel.add(descLabel, gbc);
+
+        gbc.gridy = 5;
+        panel.add(new JScrollPane(descriptionArea), gbc);
+
+        ModernButton addButton = new ModernButton("✅ Add Room", ThemeColors.SUCCESS);
+        addButton.addActionListener(e -> {
+            try {
+                int id = Integer.parseInt(idField.getText().trim());
+                String type = typeField.getText().trim();
+                double price = Double.parseDouble(priceField.getText().trim());
+                int capacity = (Integer) capacitySpinner.getValue();
+                String description = descriptionArea.getText().trim();
+
+                if (type.isEmpty() || description.isEmpty()) {
+                    showCustomMessage("❌ Please fill all fields!", "Error");
+                    return;
+                }
+
+                Room newRoom = new Room(id, type, price, description, capacity);
+                if (hotelManager.addRoom(newRoom)) {
+                    showCustomMessage("✅ Room added successfully!", "Success");
+                    updateAllPanels();
+                    dialog.dispose();
+                } else {
+                    showCustomMessage("❌ Room ID already exists!", "Error");
+                }
+            } catch (NumberFormatException ex) {
+                showCustomMessage("❌ Please enter valid values!", "Error");
+            }
+        });
+
+        ModernButton cancelButton = new ModernButton("❌ Cancel", ThemeColors.DANGER);
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        buttonPanel.setBackground(ThemeColors.CARD_BG);
+        buttonPanel.add(addButton);
+        buttonPanel.add(cancelButton);
+
+        gbc.gridx = 0;
+        gbc.gridy = 6;
+        gbc.insets = new Insets(25, 12, 12, 12);
+        panel.add(buttonPanel, gbc);
+
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+
+    private void showEditProfileDialog() {
+        JDialog dialog = new JDialog(this, "Edit Profile", true);
+        dialog.setSize(450, 350);
+        dialog.setLocationRelativeTo(this);
+        dialog.setResizable(false);
+
+        RoundedPanel panel = new RoundedPanel(15);
+        panel.setLayout(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(12, 12, 12, 12);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JTextField emailField = createModernTextField(currentUser.getEmail());
+        JTextField phoneField = createModernTextField(currentUser.getPhoneNumber());
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        panel.add(createLabeledComponent("Email:", emailField), gbc);
+
+        gbc.gridy = 1;
+        panel.add(createLabeledComponent("Phone:", phoneField), gbc);
+
+        ModernButton saveButton = new ModernButton("✅ Save Changes", ThemeColors.SUCCESS);
+        saveButton.addActionListener(e -> {
+            String email = emailField.getText().trim();
+            String phone = phoneField.getText().trim();
+
+            if (email.isEmpty() || phone.isEmpty()) {
+                showCustomMessage("❌ Please fill all fields!", "Error");
+                return;
+            }
+
+            currentUser.setEmail(email);
+            currentUser.setPhoneNumber(phone);
+            authController.saveUsers();
+            showCustomMessage("✅ Profile updated!", "Success");
+            updateAllPanels();
+            dialog.dispose();
+        });
+
+        ModernButton cancelButton = new ModernButton("❌ Cancel", ThemeColors.DANGER);
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        buttonPanel.setBackground(ThemeColors.CARD_BG);
+        buttonPanel.add(saveButton);
+        buttonPanel.add(cancelButton);
+
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(25, 12, 12, 12);
+        panel.add(buttonPanel, gbc);
+
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+
+    private void showChangePasswordDialog() {
+        JDialog dialog = new JDialog(this, "Change Password", true);
+        dialog.setSize(450, 350);
+        dialog.setLocationRelativeTo(this);
+        dialog.setResizable(false);
+
+        RoundedPanel panel = new RoundedPanel(15);
+        panel.setLayout(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(12, 12, 12, 12);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JPasswordField oldPassField = createModernPasswordField("Old Password");
+        JPasswordField newPassField = createModernPasswordField("New Password");
+        JPasswordField confirmPassField = createModernPasswordField("Confirm Password");
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        panel.add(oldPassField, gbc);
+
+        gbc.gridy = 1;
+        panel.add(newPassField, gbc);
+
+        gbc.gridy = 2;
+        panel.add(confirmPassField, gbc);
+
+        ModernButton changeButton = new ModernButton("✅ Change Password", ThemeColors.SUCCESS);
+        changeButton.addActionListener(e -> {
+            String oldPass = new String(oldPassField.getPassword());
+            String newPass = new String(newPassField.getPassword());
+            String confirmPass = new String(confirmPassField.getPassword());
+
+            if (oldPass.isEmpty() || newPass.isEmpty() || confirmPass.isEmpty()) {
+                showCustomMessage("❌ Please fill all fields!", "Error");
+                return;
+            }
+
+            if (!oldPass.equals(currentUser.getPassword())) {
+                showCustomMessage("❌ Old password is incorrect!", "Error");
+                return;
+            }
+
+            if (!newPass.equals(confirmPass)) {
+                showCustomMessage("❌ Passwords don't match!", "Error");
+                return;
+            }
+
+            if (newPass.length() < 6) {
+                showCustomMessage("❌ Password must be at least 6 characters!", "Error");
+                return;
+            }
+
+            currentUser.setPassword(newPass);
+            authController.saveUsers();
+            showCustomMessage("✅ Password changed successfully!", "Success");
+            dialog.dispose();
+        });
+
+        ModernButton cancelButton = new ModernButton("❌ Cancel", ThemeColors.DANGER);
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        buttonPanel.setBackground(ThemeColors.CARD_BG);
+        buttonPanel.add(changeButton);
+        buttonPanel.add(cancelButton);
+
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(25, 12, 12, 12);
+        panel.add(buttonPanel, gbc);
+
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+
+    private void showCustomMessage(String message, String type) {
+        JOptionPane.showMessageDialog(this, message, type, 
+            type.equals("Error") ? JOptionPane.ERROR_MESSAGE :
+            type.equals("Warning") ? JOptionPane.WARNING_MESSAGE :
+            JOptionPane.INFORMATION_MESSAGE);
     }
 
     private LocalDate convertToLocalDate(java.util.Date date) {
@@ -1564,16 +2067,61 @@ public class HotelReservationSystem extends JFrame {
             }
         }
 
+        // Update Profile Panel
+        for (Component c : mainPanel.getComponents()) {
+            JPanel p = (JPanel) c;
+            if (p.getClientProperty("usernameValue") != null) {
+                JLabel usernameValue = (JLabel) p.getClientProperty("usernameValue");
+                JLabel emailValue = (JLabel) p.getClientProperty("emailValue");
+                JLabel phoneValue = (JLabel) p.getClientProperty("phoneValue");
+                JLabel memberSince = (JLabel) p.getClientProperty("memberSince");
+
+                usernameValue.setText(currentUser.getUsername());
+                emailValue.setText(currentUser.getEmail());
+                phoneValue.setText(currentUser.getPhoneNumber());
+                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd-MM-yyyy");
+                memberSince.setText(sdf.format(new java.util.Date(currentUser.getCreatedAt())));
+                break;
+            }
+        }
+
+        // Update Admin Dashboard Stats
+        for (Component c : mainPanel.getComponents()) {
+            JPanel p = (JPanel) c;
+            if (p.getClientProperty("statsPanel") != null && currentUser.isAdmin()) {
+                JPanel statsPanel = (JPanel) p.getClientProperty("statsPanel");
+                Component[] components = statsPanel.getComponents();
+                
+                int totalBookings = hotelManager.getTotalBookings();
+                int confirmedBookings = hotelManager.getConfirmedBookings();
+                double revenue = hotelManager.getTotalRevenue();
+                double occupancy = hotelManager.getOccupancyRate();
+
+                if (components.length >= 4) {
+                    JPanel stat1 = (JPanel) components[0];
+                    JPanel stat2 = (JPanel) components[1];
+                    JPanel stat3 = (JPanel) components[2];
+                    JPanel stat4 = (JPanel) components[3];
+
+                    updateStatCard(stat1, String.valueOf(totalBookings));
+                    updateStatCard(stat2, String.valueOf(confirmedBookings));
+                    updateStatCard(stat3, "Rs." + String.format("%.2f", revenue));
+                    updateStatCard(stat4, String.format("%.1f%%", occupancy));
+                }
+                break;
+            }
+        }
+
         // Update View Rooms
         for (Component c : mainPanel.getComponents()) {
             JPanel p = (JPanel) c;
-            if (p.getClientProperty("roomsContent") != null && p.getClientProperty("bookingsContent") == null) {
+            if (p.getClientProperty("roomsContent") != null && p.getClientProperty("bookingsContent") == null && !currentUser.isAdmin()) {
                 JPanel roomsContent = (JPanel) p.getClientProperty("roomsContent");
                 roomsContent.removeAll();
                 for (Room room : hotelManager.getAllRooms()) {
                     JPanel roomCard = createRoomCard(room);
                     roomsContent.add(roomCard);
-                    roomsContent.add(Box.createVerticalStrut(10));
+                    roomsContent.add(Box.createVerticalStrut(12));
                 }
                 roomsContent.revalidate();
                 roomsContent.repaint();
@@ -1585,28 +2133,16 @@ public class HotelReservationSystem extends JFrame {
         for (Component c : mainPanel.getComponents()) {
             JPanel p = (JPanel) c;
             if (p.getClientProperty("roomsContent") != null && currentUser.isAdmin()) {
-                Component[] components = mainPanel.getComponents();
-                for (Component comp : components) {
-                    JPanel panel = (JPanel) comp;
-                    Component[] children = panel.getComponents();
-                    for (Component child : children) {
-                        if (child instanceof JPanel) {
-                            JPanel innerPanel = (JPanel) child;
-                            if (innerPanel.getClientProperty("roomsContent") != null) {
-                                JPanel manageRoomsContent = (JPanel) innerPanel.getClientProperty("roomsContent");
-                                if (manageRoomsContent != null) {
-                                    manageRoomsContent.removeAll();
-                                    for (Room room : hotelManager.getAllRooms()) {
-                                        JPanel roomCard = createAdminRoomCard(room);
-                                        manageRoomsContent.add(roomCard);
-                                        manageRoomsContent.add(Box.createVerticalStrut(10));
-                                    }
-                                    manageRoomsContent.revalidate();
-                                    manageRoomsContent.repaint();
-                                }
-                            }
-                        }
+                JPanel manageRoomsContent = (JPanel) p.getClientProperty("roomsContent");
+                if (manageRoomsContent != null) {
+                    manageRoomsContent.removeAll();
+                    for (Room room : hotelManager.getAllRooms()) {
+                        JPanel roomCard = createAdminRoomCard(room);
+                        manageRoomsContent.add(roomCard);
+                        manageRoomsContent.add(Box.createVerticalStrut(12));
                     }
+                    manageRoomsContent.revalidate();
+                    manageRoomsContent.repaint();
                 }
                 break;
             }
@@ -1620,16 +2156,16 @@ public class HotelReservationSystem extends JFrame {
                 roomCombo.removeAllItems();
                 ArrayList<Room> availableRooms = hotelManager.getAvailableRooms();
                 for (Room room : availableRooms) {
-                    roomCombo.addItem("Room #" + room.getId() + " - " + room.getType() + " - Capacity: " + room.getCapacity() + " | Rs." + room.getPrice() + "/night");
+                    roomCombo.addItem("🛏️ Room #" + room.getId() + " | " + room.getType() + " | Capacity: " + room.getCapacity() + " | Rs." + room.getPrice() + "/night");
                 }
                 break;
             }
         }
 
-        // Update View Bookings
+        // Update My Bookings
         for (Component c : mainPanel.getComponents()) {
             JPanel p = (JPanel) c;
-            if (p.getClientProperty("bookingsContent") != null && p.getClientProperty("historyContent") == null) {
+            if (p.getClientProperty("bookingsContent") != null) {
                 JPanel bookingsContent = (JPanel) p.getClientProperty("bookingsContent");
                 bookingsContent.removeAll();
 
@@ -1642,15 +2178,15 @@ public class HotelReservationSystem extends JFrame {
                 }
 
                 if (activeBookings.isEmpty()) {
-                    JLabel noBookingsLabel = new JLabel("You have no active bookings!");
-                    noBookingsLabel.setFont(new Font("Arial", Font.ITALIC, 16));
-                    noBookingsLabel.setForeground(new Color(100, 100, 100));
+                    JLabel noBookingsLabel = new JLabel("📭 No active bookings!");
+                    noBookingsLabel.setFont(new Font("Segoe UI", Font.ITALIC, 16));
+                    noBookingsLabel.setForeground(ThemeColors.DARK_GRAY);
                     bookingsContent.add(noBookingsLabel);
                 } else {
                     for (Booking booking : activeBookings) {
                         JPanel bookingCard = createBookingCard(booking);
                         bookingsContent.add(bookingCard);
-                        bookingsContent.add(Box.createVerticalStrut(10));
+                        bookingsContent.add(Box.createVerticalStrut(12));
                     }
                 }
                 bookingsContent.revalidate();
@@ -1658,37 +2194,15 @@ public class HotelReservationSystem extends JFrame {
                 break;
             }
         }
+    }
 
-        // Update Booking History
-        for (Component c : mainPanel.getComponents()) {
-            JPanel p = (JPanel) c;
-            if (p.getClientProperty("historyContent") != null) {
-                JPanel historyContent = (JPanel) p.getClientProperty("historyContent");
-                historyContent.removeAll();
-
-                ArrayList<Booking> allUserBookings = hotelManager.getUserBookings(currentUser.getUsername());
-                ArrayList<Booking> allBookings = new ArrayList<>(allUserBookings);
-                for (Booking b : hotelManager.getAllBookings()) {
-                    if (b.getUsername().equals(currentUser.getUsername()) && b.getStatus().equals("CANCELLED")) {
-                        allBookings.add(b);
-                    }
+    private void updateStatCard(JPanel statCard, String value) {
+        for (Component comp : statCard.getComponents()) {
+            if (comp instanceof JLabel) {
+                JLabel label = (JLabel) comp;
+                if (label.getFont().getSize() > 15) {
+                    label.setText(value);
                 }
-
-                if (allBookings.isEmpty()) {
-                    JLabel noHistoryLabel = new JLabel("You have no booking history!");
-                    noHistoryLabel.setFont(new Font("Arial", Font.ITALIC, 16));
-                    noHistoryLabel.setForeground(new Color(100, 100, 100));
-                    historyContent.add(noHistoryLabel);
-                } else {
-                    for (Booking booking : allBookings) {
-                        JPanel bookingCard = createBookingHistoryCard(booking);
-                        historyContent.add(bookingCard);
-                        historyContent.add(Box.createVerticalStrut(10));
-                    }
-                }
-                historyContent.revalidate();
-                historyContent.repaint();
-                break;
             }
         }
     }
